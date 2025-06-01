@@ -97,13 +97,14 @@
 
 ## 🚀 安装与启动 (Installation & Setup)
 
-**后端 (Cloudflare Worker - `backend-worker` 目录):**
+**后端 (Cloudflare Worker):**
 
 首先fork https://github.com/macklee6/nice
 在 Cloudflare Dashboard 创建一个 KV Namespace 命名为SECRETS_KV
+
 复制 KV Namespace 的 `id`，替换wrangler.toml中id和preview_id为刚才复制的字符串
 
-src/index.js中https://text.arksec.net替换成你的域名或者worker地址
+src/index.js中 https://text.arksec.net 替换成你的域名或者worker地址
 一键部署到cloudflare
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?projectName=nice)
 
@@ -111,7 +112,8 @@ src/index.js中https://text.arksec.net替换成你的域名或者worker地址
 
 **前端 (Vue 3 + Vite):**
 
-一键部署到vercel [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/macklee6/Easytext) 
+一键部署到vercel
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/macklee6/Easytext) 
 
 设置好环境变量
 ```bash
