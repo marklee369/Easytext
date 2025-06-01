@@ -1,0 +1,217 @@
+/* frontend/src/styles/main.scss */
+/* Bulma CSS is imported in main.js before this file */
+
+:root { // 唯一主题：深色科技感
+  // --- 科技感核心调色板 (深色模式) ---
+  --tech-accent-color: hsl(180, 100%, 55%);
+  --tech-accent-secondary-color: hsl(200, 100%, 60%);
+  --tech-glow-color: hsla(180, 100%, 70%, 0.4);
+  --tech-background-main: hsl(220, 25%, 8%);
+  --tech-background-body: hsl(220, 25%, 12%);
+  --tech-panel-bg: hsl(220, 22%, 16%);
+  --tech-panel-bg-alpha: hsla(220, 22%, 16%, 0.85);
+  --tech-border-color: hsl(220, 20%, 28%);
+  --tech-text-primary: hsl(210, 25%, 88%);
+  --tech-text-secondary: hsl(210, 20%, 70%); /* 次要文字/提示文字 */
+  --tech-text-strong: hsl(0, 0%, 100%);
+  --tech-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --tech-font-family-mono: 'IBM Plex Mono', 'Roboto Mono', monospace;
+
+  // --- Bulma 变量覆盖 ---
+  --bulma-primary: var(--tech-accent-color);
+  --bulma-primary-light: color-mix(in srgb, var(--bulma-primary) 80%, black);
+  --bulma-primary-dark: color-mix(in srgb, var(--bulma-primary) 80%, #000);
+  --bulma-primary-invert: hsl(220, 25%, 10%); 
+
+  --bulma-link: var(--tech-accent-secondary-color);
+  --bulma-link-hover: color-mix(in srgb, var(--tech-accent-secondary-color) 85%, white);
+  --bulma-link-invert: var(--bulma-primary-invert);
+
+  // --- 语义颜色 (确保作为文本时足够亮) ---
+  --bulma-info: hsl(200, 100%, 75%);
+  --bulma-success: hsl(141, 70%, 65%);
+  --bulma-warning: hsl(40, 100%, 70%); /* 警告文本颜色 */
+  --bulma-danger: hsl(348, 90%, 70%);  /* 危险/错误文本颜色 */
+
+  // --- 用于 .is-light 通知的背景和文本 ---
+  --bulma-info-light-background: color-mix(in srgb, var(--bulma-info) 10%, var(--tech-panel-bg));
+  --bulma-success-light-background: color-mix(in srgb, var(--bulma-success) 10%, var(--tech-panel-bg));
+  --bulma-warning-light-background: color-mix(in srgb, var(--bulma-warning) 10%, var(--tech-panel-bg));
+  --bulma-danger-light-background: color-mix(in srgb, var(--bulma-danger) 10%, var(--tech-panel-bg));
+
+  // 在这些 .is-light 通知背景上的文本颜色需要非常亮
+  --bulma-info-strong: hsl(200, 100%, 90%);
+  --bulma-success-strong: hsl(141, 80%, 85%);
+  --bulma-warning-strong: hsl(40, 100%, 88%);
+  --bulma-danger-strong: hsl(348, 100%, 90%);
+
+  // --- 文本颜色 ---
+  --bulma-text: var(--tech-text-primary);
+  --bulma-text-light: var(--tech-text-secondary); /* 用于 .help, .label-extra-info, .has-text-grey-light 等 */
+  --bulma-text-strong: var(--tech-text-strong);
+  
+  // --- 背景和边框 ---
+  --bulma-background: var(--tech-background-main);
+  --bulma-body-background-color: var(--tech-background-body);
+  --bulma-border: var(--tech-border-color);
+  --bulma-border-hover: color-mix(in srgb, var(--tech-border-color) 70%, var(--tech-text-primary));
+  --bulma-card-background-color: var(--tech-panel-bg);
+  --bulma-box-background-color: var(--tech-panel-bg);
+  --bulma-code-background: hsl(220, 20%, 10%);
+  --bulma-pre-background: hsl(220, 20%, 10%);
+  --bulma-navbar-background-color-alpha: var(--tech-panel-bg-alpha);
+  --bulma-navbar-background-color: var(--tech-panel-bg);
+  --navbar-border-color: var(--tech-border-color);
+  --bulma-footer-background-color: var(--tech-background-main);
+
+  // --- 表单元素 ---
+  --bulma-input-background-color: hsl(220, 20%, 10%);
+  --bulma-input-color: var(--tech-text-primary);
+  --bulma-input-border-color: var(--tech-border-color);
+  --bulma-input-hover-border-color: var(--bulma-border-hover);
+  --bulma-input-focus-border-color: var(--bulma-primary);
+  --bulma-input-placeholder-color: color-mix(in srgb, var(--tech-text-secondary) 70%, transparent);
+
+  // --- 我们应用层直接使用的变量 ---
+  --body-background-color: var(--bulma-body-background-color);
+  --text-color: var(--bulma-text);
+  --primary-color: var(--bulma-primary);
+  --link-color: var(--bulma-link);
+  --tech-font-family: var(--tech-font-family-sans);
+  --loader-bg: var(--tech-background-body); 
+
+  // --- Markdown Body ---
+  --markdown-body-background: var(--bulma-card-background-color);
+  --markdown-body-border-color: var(--bulma-border);
+  --markdown-text-color: var(--bulma-text);
+  --markdown-heading-color: var(--bulma-text-strong);
+  --markdown-pre-background: var(--bulma-pre-background);
+  --markdown-pre-color: var(--bulma-text);
+  --markdown-code-background: var(--bulma-code-background);
+  --markdown-code-color: var(--bulma-text);
+  --markdown-blockquote-border: var(--bulma-primary);
+  --markdown-blockquote-background: color-mix(in srgb, var(--bulma-primary) 10%, var(--bulma-card-background-color));
+  --markdown-table-border: var(--bulma-border);
+  --markdown-table-header-background: color-mix(in srgb, var(--bulma-border) 30%, var(--bulma-card-background-color));
+
+  // --- 特定提示文本的颜色 (被 CreateSecretView.vue 中的样式引用) ---
+  // 这些变量确保即使在 CreateSecretView.vue 中硬编码了 var(--name)，它们也有清晰的定义
+  --view-password-disclosure-danger-text: var(--bulma-danger); 
+  --view-default-password-notice-warning-text: var(--bulma-warning); 
+}
+
+/* --- 全局 HTML 和 body 样式 --- */
+html {
+  font-family: var(--tech-font-family);
+  background-color: var(--bulma-background); 
+  color: var(--bulma-text); 
+  scroll-behavior: smooth;
+  font-size: 16px; 
+}
+body {
+  font-family: var(--tech-font-family); 
+  background-color: var(--bulma-body-background-color); 
+  color: var(--bulma-text); 
+  line-height: 1.65; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Bulma 辅助类颜色修正 (确保提示文字清晰) --- */
+/* Bulma 的 .help 类和 .is-X 颜色修饰符 */
+.help { color: var(--bulma-text-light); } /* 默认 help 文本颜色 */
+.help.is-primary { color: var(--bulma-primary) !important; }
+.help.is-link { color: var(--bulma-link) !important; }
+.help.is-info { color: var(--bulma-info) !important; }
+.help.is-success { color: var(--bulma-success) !important; }
+.help.is-warning { color: var(--bulma-warning) !important; }
+.help.is-danger { color: var(--bulma-danger) !important; }
+
+/* Bulma 的 .has-text-X 颜色修饰符 */
+.has-text-primary { color: var(--bulma-primary) !important; }
+.has-text-link { color: var(--bulma-link) !important; }
+.has-text-info { color: var(--bulma-info) !important; }
+.has-text-success { color: var(--bulma-success) !important; }
+.has-text-warning { color: var(--bulma-warning) !important; }
+.has-text-danger { color: var(--bulma-danger) !important; }
+
+.has-text-white { color: var(--tech-text-strong) !important; } /* #fff */
+.has-text-black { color: var(--tech-text-primary) !important; } /* 在深色模式下，"black" 应该是亮的 */
+.has-text-light { color: var(--tech-text-secondary) !important; } /* 对应 --bulma-text-light */
+.has-text-dark { color: var(--tech-text-primary) !important; }  /* 对应 --bulma-text */
+
+.has-text-grey-lighter,
+.has-text-grey-light,
+.has-text-grey { color: var(--bulma-text-light) !important; }
+.has-text-grey-dark,
+.has-text-grey-darker { color: var(--tech-text-primary) !important; } /* 在深色模式下，darker grey 应该比普通 text 更不显眼 */
+
+
+/* --- 其他全局样式 (与之前版本一致) --- */
+*, *::before, *::after { box-sizing: border-box; }
+a, button, input, textarea, select, summary { transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease, transform 0.2s ease; }
+.button:not([disabled]) {
+  font-weight: 500; letter-spacing: 0.25px;
+  &:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 12px color-mix(in srgb, var(--tech-accent-color) 15%, transparent); }
+  &:active { transform: translateY(0px) scale(1); box-shadow: inset 0 3px 5px rgba(0,0,0,0.15); }
+}
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
+textarea:-webkit-autofill, textarea:-webkit-autofill:hover, textarea:-webkit-autofill:focus,
+select:-webkit-autofill, select:-webkit-autofill:hover, select:-webkit-autofill:focus {
+  border: 1px solid var(--bulma-input-focus-border-color);
+  -webkit-text-fill-color: var(--bulma-input-color);
+  -webkit-box-shadow: 0 0 0px 1000px var(--bulma-input-background-color) inset;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: var(--bulma-input-color);
+}
+.input, .textarea, .select select {
+  &:focus, &:active {
+    border-color: var(--bulma-input-focus-border-color) !important;
+    box-shadow: 0 0 8px -2px var(--tech-glow-color), 0 0 0 0.125em color-mix(in srgb, var(--bulma-input-focus-border-color) 20%, transparent) !important;
+  }
+}
+.select:not(.is-multiple):not(.is-loading)::after { border-color: var(--bulma-primary); }
+.navbar.is-fixed-top {
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  background-color: var(--navbar-background-color-alpha);
+  border-bottom: 1px solid var(--navbar-border-color);
+}
+.box, .notification { /* Apply common styling to box and notification */
+  border: 1px solid var(--bulma-border);
+  border-radius: var(--bulma-radius-large, 8px);
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.25), 0 6px 15px -8px rgba(0,0,0,0.2);
+}
+
+/* Specific notification styling for .is-light variants */
+.notification.is-primary.is-light { background-color: var(--bulma-primary-light-background); color: var(--bulma-primary-strong); border-left-color: var(--bulma-primary) !important; }
+.notification.is-link.is-light { background-color: color-mix(in srgb, var(--bulma-link) 10%, var(--tech-panel-bg)); color: var(--bulma-link-strong, var(--bulma-link-invert)); border-left-color: var(--bulma-link) !important; }
+.notification.is-info.is-light { background-color: var(--bulma-info-light-background); color: var(--bulma-info-strong); border-left-color: var(--bulma-info) !important; }
+.notification.is-success.is-light { background-color: var(--bulma-success-light-background); color: var(--bulma-success-strong); border-left-color: var(--bulma-success) !important; }
+.notification.is-warning.is-light { background-color: var(--bulma-warning-light-background); color: var(--bulma-warning-strong); border-left-color: var(--bulma-warning) !important; }
+.notification.is-danger.is-light { background-color: var(--bulma-danger-light-background); color: var(--bulma-danger-strong); border-left-color: var(--bulma-danger) !important; }
+
+.footer { border-top: 1px solid var(--bulma-border); background-color: var(--bulma-footer-background-color); }
+
+/* Markdown内容样式 (与之前版本一致) */
+.markdown-body { background-color: var(--markdown-body-background); border: 1px solid var(--markdown-body-border-color); border-radius: var(--bulma-radius); padding: 1.5rem 2rem; color: var(--markdown-text-color); word-wrap: break-word; line-height: 1.75; font-family: var(--tech-font-family-sans); }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { color: var(--markdown-heading-color); font-family: var(--tech-font-family-sans); font-weight: 700; margin-bottom: 0.75em; margin-top: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--bulma-border); &:first-child { margin-top: 0; } }
+.markdown-body h1 { font-size: var(--bulma-size-2); } .markdown-body h2 { font-size: var(--bulma-size-3); } .markdown-body h3 { font-size: var(--bulma-size-4); }
+.markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body blockquote { margin-bottom: 1.25em; }
+.markdown-body pre { background-color: var(--markdown-pre-background); color: var(--markdown-pre-color); padding: 1em 1.25em; overflow-x: auto; white-space: pre; word-wrap: normal; border-radius: var(--bulma-radius-small); border: 1px solid var(--bulma-border); font-family: var(--tech-font-family-mono); font-size: 0.9em; line-height: 1.6; }
+.markdown-body code:not(pre > code) { background-color: var(--markdown-code-background); color: var(--markdown-code-color); padding: 0.25em 0.5em; border-radius: var(--bulma-radius-small); font-family: var(--tech-font-family-mono); font-size: 0.85em; border: 1px solid var(--bulma-border); }
+.markdown-body blockquote { border-left: 4px solid var(--markdown-blockquote-border); padding: 0.75em 1.25em; background-color: var(--markdown-blockquote-background); color: var(--bulma-text-light); font-style: italic; }
+.markdown-body table { border-spacing: 0; border-collapse: collapse; width: 100%; margin-bottom: 1.25em; th, td { border: 1px solid var(--markdown-table-border); padding: 0.75em 1em; } th { background-color: var(--markdown-table-header-background); font-weight: 600; } }
+.markdown-body img { max-width: 100%; height: auto; display: block; margin: 1.5em auto; border-radius: var(--bulma-radius); border: 1px solid var(--bulma-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.markdown-body hr { border: none; height: 1px; background-color: var(--bulma-border); margin: 2rem 0; }
+.animated-entry { opacity: 0; transform: translateY(15px) scale(0.98); animation: fadeInUpMore 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }
+@keyframes fadeInUpMore { to { opacity: 1; transform: translateY(0) scale(1); } }
+[data-tooltip] { position: relative; }
+[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px); background-color: var(--bulma-text-strong); color: var(--bulma-background); padding: 0.3em 0.6em; border-radius: var(--bulma-radius-small); font-size: 0.8rem; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease; pointer-events: none; z-index: 1000; }
+[data-tooltip]:hover::after { opacity: 1; visibility: visible; }
+[data-tooltip].has-tooltip-arrow::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(0px); border: 5px solid transparent; border-top-color: var(--bulma-text-strong); opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease; pointer-events: none; z-index: 1000; }
+[data-tooltip].has-tooltip-arrow:hover::before { opacity: 1; visibility: visible; }
+
+.footer.app-footer { // 使用组合选择器提高吸引异性owo
+    padding: 1.5rem 1.5rem 2rem !important;
+}

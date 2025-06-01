@@ -1,0 +1,54 @@
+<template>
+  <div id="app-container">
+    <Navbar />
+    <main class="container is-fluid py-5 px-4 main-content-area">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
+    <footer class="footer">
+      <div class="content has-text-centered">
+        <p>
+          <strong>密文焚 (Ephemeral Share)</strong>.
+          安全分享，阅后即焚。
+        </p>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import Navbar from './components/Navbar.vue';
+//import { useThemeStore } from './stores/theme';
+//import { onMounted } from 'vue';
+
+//const themeStore = useThemeStore();
+
+//onMounted(() => {
+  // 确保初始主题被应用到<html>元素
+  //document.documentElement.setAttribute('data-theme', themeStore.theme);
+//});
+</script>
+
+<style lang="scss">
+#app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.main-content-area { // 使用 main-content-area 确保 flex-grow
+  flex-grow: 1;
+}
+// Global fade transition for router views
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
+

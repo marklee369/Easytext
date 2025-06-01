@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/tech-favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy text</title>
+    <meta name="description" content="安全分享，保护隐私">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Roboto+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+      /* 初始加载动画样式 */
+      #app-loader {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        /* --loader-bg: #0a0f1a;  科技感深色背景, 会被主题CSS变量覆盖 */
+        background-color: var(--loader-bg, #010409); /* 默认一个非常暗的颜色 */
+        display: flex;
+        flex-direction: column; /* 让文字在logo下方 */
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.7s cubic-bezier(0.77, 0, 0.175, 1), visibility 0.7s cubic-bezier(0.77, 0, 0.175, 1);
+        visibility: visible;
+      }
+      #app-loader.loaded {
+        opacity: 0;
+        visibility: hidden; /* 动画结束后隐藏并移除交互 */
+        pointer-events: none;
+      }
+      .loader-container {
+        /* 如果需要包裹logo和文字 */
+      }
+      .loader-logo {
+        width: 70px;
+        height: 70px;
+        border: 5px solid transparent;
+        border-top-color: hsl(180, 100%, 50%); /* 青色/蓝绿色 */
+        border-right-color: hsl(180, 100%, 50%);
+        border-radius: 50%;
+        animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        margin-bottom: 20px; /* logo和文字间距 */
+      }
+      .loader-text {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1.1rem;
+        color: hsl(210, 25%, 80%);
+        letter-spacing: 1px;
+        opacity: 0;
+        animation: fadeInText 0.8s 0.3s forwards;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg) scale(0.8); }
+        50% { transform: rotate(180deg) scale(1); }
+        100% { transform: rotate(360deg) scale(0.8); }
+      }
+      @keyframes fadeInText {
+        to { opacity: 1; }
+      }
+
+      /* 其他初始样式 */
+      body {
+        padding-top: 3.25rem; /* Bulma is-fixed-top navbar height */
+        opacity: 0; /* 初始隐藏，等待JS加载完成显示 */
+        transition: opacity 0.5s 0.2s ease-in; /* 延迟显示，在loader消失后 */
+      }
+      body.app-mounted {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-loader">
+      <div class="loader-container">
+        <div class="loader-logo"></div>
+        <div class="loader-text">INITIALIZING INTERFACE...</div>
+      </div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
