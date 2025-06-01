@@ -223,6 +223,22 @@ async function handleDecrypt() {
   padding: 2rem 2.5rem; 
   position: relative; 
   transition: filter 0.3s ease-out;
+
+  /* 默认和移动端/平板端行为 */
+  width: 100%; 
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 680px; /* 与创建页面保持一致的基础最大宽度 */
+
+  /* 针对电脑端 (桌面) 的宽度调整 */
+  @media screen and (min-width: 1024px) { 
+    max-width: 760px; 
+  }
+
+  /* 可选：针对非常宽的屏幕 (FullHD+) 的进一步调整 */
+  @media screen and (min-width: 1408px) { 
+    max-width: 800px; 
+  }
 }
 
 .secret-display-box.is-processing {

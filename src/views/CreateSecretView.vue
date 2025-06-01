@@ -280,6 +280,23 @@ function copyLink() {
   padding: 2rem 2.5rem; 
   position: relative; 
   transition: filter 0.3s ease-out; 
+
+    /* 默认和移动端/平板端行为 */
+  width: 100%; /* 占据其父列的全部可用宽度 */
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 680px; /* 为中等屏幕设置一个舒适的最大宽度，例如平板横屏 */
+                   /* 如果父列的宽度小于此值，则盒子宽度为父列宽度 */
+
+  /* 针对电脑端 (桌面) 的宽度调整 */
+  @media screen and (min-width: 1024px) { /* Bulma $desktop breakpoint (或您自定义的桌面断点) */
+    max-width: 760px; /* 在标准桌面上，允许内容盒子更宽一些 */
+  }
+
+  /* 可选：针对非常宽的屏幕 (FullHD+) 的进一步调整 */
+  @media screen and (min-width: 1408px) { /* Bulma $fullhd breakpoint */
+    max-width: 800px; /* 在超宽屏上，可以允许内容盒子再宽一些 */
+  }
 }
 
 .secret-form-box.is-processing {
@@ -411,24 +428,46 @@ function copyLink() {
 .destruction-options {
   display: inline-flex; 
   align-items: center;
-  flex-wrap: wrap; 
+  flex-wrap: nowrap; 
   gap: 0.75rem;     
   padding-bottom: 5px; 
+  max-width: 100%; 
+  overflow-x: auto; 
+  -webkit-overflow-scrolling: touch; 
+  scrollbar-width: none; 
+  &::-webkit-scrollbar { 
+    display: none;
+  }
 
   .tech-radio {
-    flex-shrink: 0; 
+    flex-shrink: 1; 
+    min-width: 0; 
   }
 
   .radio-label {
-    padding: 0.4em 0.8em 0.4em 1.8em; 
-    font-size: 0.9rem; 
+    padding: 0.4em 0.6em 0.4em 1.7em; 
+    font-size: 0.85rem; 
     white-space: nowrap; 
 
     .svg-inline--fa { 
-        margin-right: 0.4em;
+        margin-right: 0.3em;
     }
-    &:before { left: 0.4em; width: 14px; height: 14px; }
-    &:after { left: calc(0.4em + 3px); top: calc(50% - 4px); width: 8px; height: 8px; } 
+    &:before { left: 0.3em; width: 13px; height: 13px; top: calc(50% - 7.5px); }
+    &:after { left: calc(0.3em + 2.5px); top: calc(50% - 4px); width: 8px; height: 8px; } 
+  }
+}
+
+@media screen and (max-width: 360px) { 
+  .destruction-options {
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: 0.5rem;
+    .tech-radio {
+      margin-bottom: 0.5rem; 
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
   }
 }
 
