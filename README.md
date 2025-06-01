@@ -104,11 +104,11 @@
 
 复制 KV Namespace 的 `id`，替换wrangler.toml中id和preview_id为刚才复制的字符串
 
-src/index.js中 https://text.arksec.net 替换成你的域名或者worker地址
+src/index.js中 https://text.arksec.net 替换成你vercel的域名或者worker地址
 一键部署到cloudflare
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?projectName=nice)
 
-选择fork修改后的项目名，部署即可，复制好worker地址
+选择fork修改后的项目名，部署即可
 
 **前端 (Vue 3 + Vite):**
 

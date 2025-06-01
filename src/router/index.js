@@ -8,14 +8,14 @@ const routes = [
     path: '/',
     name: 'CreateSecret',
     component: CreateSecretView,
-    meta: { title: '创建密文 ' }
+    meta: { title: 'Easy text' }
   },
   {
     path: '/s/:secretId',
     name: 'ViewSecret',
     component: ViewSecretView,
     props: true, // 将 :secretId 作为 prop 传递给组件
-    meta: { title: '查看密文' }
+    meta: { title: 'Easy text' }
   },
   {
     path: '/:pathMatch(.*)*', // 捕获所有未匹配的路由
