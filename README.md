@@ -103,6 +103,7 @@
 在 Cloudflare Dashboard 创建一个 KV Namespace 命名为SECRETS_KV
 复制 KV Namespace 的 `id`，替换wrangler.toml中id和preview_id为刚才复制的字符串
 
+src/index.js中https://text.arksec.net替换成你的域名或者worker地址
 一键部署到cloudflare
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?projectName=nice)
 
