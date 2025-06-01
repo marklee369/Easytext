@@ -93,99 +93,27 @@
      f.  检查内嵌过期时间: 如果载荷中包含过期时间戳，检查当前时间是否已超过该时间。如果已过期，则提示用户。
    * CryptoWorker 将解密后的文本消息（或错误信息）返回给主线程。
  * 净化和显示: 前端对解密得到的 Markdown 内容进行 DOMPurify XSS 净化处理，然后将其安全地渲染并显示给用户。
-流程图 (文本秘密)
-加密流程 (用户创建文本秘密时):
-graph TD
-    A[用户在浏览器输入<br>明文文本和密码<br>(或使用默认密码)] --> E[构建JSON载荷:<br>{类型: 'text', 消息, 内嵌过期时间}];
-    E --> F[发送 (JSON载荷 + 密码)<br>至前端 Web Worker];
-
-    subgraph 前端 Web Worker (浏览器后台线程)
-        G[1. 生成随机盐 (Salt)]
-        H[2. 使用 Argon2id 派生密钥<br>(密码 + Salt → 主密钥)]
-        I[3. 分割主密钥<br>(AES加密密钥KE, HMAC认证密钥KM)]
-        J[4. 生成随机初始向量 (IV)]
-        K[5. 使用 AES-256-CBC 加密JSON载荷<br>(JSON载荷 + KE + IV → 密文)]
-        L[6. 计算消息认证码 HMAC-SHA256<br>(IV + 密文 + KM → MAC标签)]
-        M[7. 组合加密体<br>(Base64(Salt).Base64(IV).<br>Base64(密文).Base64(MAC))]
-    end
-
-    F --> G; G --> H; H --> I; I --> J; J --> K; K --> L; L --> M;
-
-    M --> N[Web Worker 返回组合加密体<br>给浏览器主线程];
-    N --> O[浏览器主线程发送<br>(组合加密体 + 销毁选项)<br>至后端 Cloudflare Worker API];
-
-    subgraph 后端 Cloudflare Worker
-        P[1. 接收请求, 验证数据]
-        Q[2. 生成唯一的秘密ID]
-        R[3. 将 (秘密ID → 组合加密体)<br>及元数据 (含TTL) 存入 Cloudflare KV]
-        S[4. 返回包含秘密ID的分享链接]
-    end
-
-    O --> P; P --> Q; Q --> R; R --> S;
-
-    S --> T[浏览器主线程显示分享链接给用户];
-
-解密流程 (用户访问文本秘密链接时):
-graph TD
-    U[用户在浏览器中打开分享链接<br>(例如 .../s/秘密ID)];
-    U --> V[前端从URL中提取秘密ID];
-    V --> W[前端向后端 Cloudflare Worker API<br>请求加密数据 (使用秘密ID)];
-
-    subgraph 后端 Cloudflare Worker
-        X[1. 接收请求, 验证ID]
-        Y[2. 从 Cloudflare KV 中检索<br>与ID对应的组合加密体和元数据]
-        Z{是阅后即焚且首次访问?};
-        Z -- 是 --> AA[从 KV 中删除此条目];
-        Z -- 否 --> AB[直接返回];
-        AA --> AB;
-        AB --> AC[3. 返回组合加密体给前端]
-    end
-
-    W --> X; X --> Y; Y --> Z; AC --> AD[浏览器主线程接收组合加密体];
-    AD --> AE[提示用户输入解密密码<br>(或尝试默认密码)];
-    AE --> AF[发送 (组合加密体 + 密码)<br>至前端 Web Worker];
-
-    subgraph 前端 Web Worker (浏览器后台线程)
-        AG[1. 解析组合加密体<br>(分离出 Salt, IV, 密文, 存储的MAC)]
-        AH[2. 使用 Argon2id 重新派生密钥<br>(密码 + Salt → 主密钥)]
-        AI[3. 分割主密钥<br>(AES加密密钥KE, HMAC认证密钥KM)]
-        AJ[4. 重新计算 HMAC-SHA256<br>(IV + 密文 + KM → 计算出的MAC)]
-        AK{计算的MAC与存储的MAC是否一致?};
-        AK -- 否 (校验失败) --> AL[返回解密错误];
-        AK -- 是 (校验通过) --> AM[5. 使用 AES-256-CBC 解密密文<br>(密文 + KE + IV → JSON载荷字符串)];
-        AM --> AN[6. 解析 JSON 载荷字符串];
-        AN --> AO[7. 检查内嵌过期时间];
-        AO -- 未过期 --> AP[返回解密后的文本消息];
-        AO -- 已过期 --> AQ[返回过期错误];
-    end
-
-    AF --> AG; AG --> AH; AH --> AI; AI --> AJ; AJ --> AK;
-    AL --> AR[浏览器主线程处理结果];
-    AP --> AR; AQ --> AR;
-
-    AR --> AS{解密成功且数据类型是文本?};
-    AS -- 是 --> AT[1. 使用 DOMPurify 净化Markdown内容<br>2. 渲染HTML并显示];
-    AS -- 否/错误 --> AV[显示错误信息给用户];
 
 
 ## 🚀 安装与启动 (Installation & Setup)
 
 **后端 (Cloudflare Worker):**
 
-首先fork https://github.com/macklee6/nice
+1. 首先fork https://github.com/macklee6/nice
 在 Cloudflare Dashboard 创建一个 KV Namespace 命名为SECRETS_KV
 
-复制 KV Namespace 的 `id`，替换wrangler.toml中id和preview_id为刚才复制的字符串
+2. 复制 KV Namespace 的 `id`，替换wrangler.toml中id和preview_id为刚才复制的字符串
 
-src/index.js中 https://text.arksec.net 替换成你vercel的域名或者自定义域名
+3. 在src/index.js中 https://text.arksec.net 替换成你vercel的域名或者自定义域名
 然后，一键部署到cloudflare
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?projectName=nice)
+
+![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?projectName=nice)
 
 选择fork修改后的项目，部署即可
 
 **前端 (Vue 3 + Vite):**
 
-一键部署到vercel
+1. 一键部署到vercel
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/macklee6/Easytext) 
 
 设置好环境变量
