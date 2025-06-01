@@ -20,6 +20,9 @@ importers:
       '@fortawesome/vue-fontawesome':
         specifier: ^3.0.8
         version: 3.0.8(@fortawesome/fontawesome-svg-core@6.7.2)(vue@3.5.16)
+      argon2-browser:
+        specifier: ^1.18.0
+        version: 1.18.0
       bulma:
         specifier: ^1.0.4
         version: 1.0.4
@@ -469,6 +472,9 @@ packages:
 
   '@vue/shared@3.5.16':
     resolution: {integrity: sha512-c/0fWy3Jw6Z8L9FmTyYfkpM5zklnqqa9+a6dz3DvONRKW2NEbh46BP0FHuLFSWi2TnQEtp91Z6zOWNrU6QiyPg==}
+
+  argon2-browser@1.18.0:
+    resolution: {integrity: sha512-ImVAGIItnFnvET1exhsQB7apRztcoC5TnlSqernMJDUjbc/DLq3UEYeXFrLPrlaIl8cVfwnXb6wX2KpFf2zxHw==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -950,6 +956,8 @@ snapshots:
       vue: 3.5.16
 
   '@vue/shared@3.5.16': {}
+
+  argon2-browser@1.18.0: {}
 
   braces@3.0.3:
     dependencies:

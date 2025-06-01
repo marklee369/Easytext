@@ -1,14 +1,21 @@
 // frontend/src/workers/crypto.worker.js
 import CryptoJS from 'crypto-js';
+import argon2 from 'argon2-browser'; // 导入 argon2-browser
 
-// --- 加密/解密共用的常量和辅助函数 ---
+// --- 加密/解密共用的常量 ---
 const SALT_SIZE_BYTES = 16;
 const IV_SIZE_BYTES = 16;
-const PBKDF2_ITERATIONS = 66666; // 保持高迭代次数以确保安全
-const DERIVED_KEY_SIZE_BITS = 512;
+// Argon2 参数 (可以根据您的目标性能和安全级别进行调整)
+const ARGON2_ITERATIONS = 1;       // 时间成本 (t_cost) - 迭代次数
+const ARGON2_MEMORY_KB = 17 * 1024;  // 内存成本 (m_cost) - 单位 KiB (例如 19MB = 19456 KiB)
+const ARGON2_PARALLELISM = 1;      // 并行度 (p)
+const ARGON2_HASH_LENGTH_BYTES = 64; // 派生密钥长度，512 bits (32 bytes for AES + 32 bytes for HMAC)
+const ARGON2_TYPE = argon2.ArgonType.Argon2id; // 使用 Argon2id
+
 const AES_KEY_SIZE_BITS = 256;
 const HMAC_KEY_SIZE_BITS = 256;
 
+// --- 辅助函数 ---
 function wordArrayToBase64(wordArray) {
   return CryptoJS.enc.Base64.stringify(wordArray);
 }
@@ -16,21 +23,62 @@ function base64ToWordArray(base64Str) {
   return CryptoJS.enc.Base64.parse(base64Str);
 }
 
-// --- 加密核心逻辑 ---
-function performEncryption(text, password, expiryTimestamp = null) {
+// CryptoJS WordArray to Uint8Array
+function wordArrayToUint8Array(wordArray) {
+  const l = wordArray.sigBytes;
+  const words = wordArray.words;
+  const u8 = new Uint8Array(l);
+  for (let i = 0; i < l; i++) {
+    u8[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+  }
+  return u8;
+}
+
+// Uint8Array to CryptoJS WordArray
+function uint8ArrayToWordArray(u8Array) {
+  return CryptoJS.lib.WordArray.create(u8Array);
+}
+
+
+// --- 异步密钥派生函数 (使用 Argon2) ---
+async function deriveKeyWithArgon2(password, saltWordArray) {
   try {
-    const salt = CryptoJS.lib.WordArray.random(SALT_SIZE_BYTES);
-    const derivedKey = CryptoJS.PBKDF2(password, salt, {
-      keySize: DERIVED_KEY_SIZE_BITS / 32,
-      iterations: PBKDF2_ITERATIONS,
-      hasher: CryptoJS.algo.SHA256
+    const saltUint8Array = wordArrayToUint8Array(saltWordArray); // Argon2 库通常需要 Uint8Array 格式的盐
+
+    const hashResult = await argon2.hash({
+      pass: password, // 密码字符串
+      salt: saltUint8Array, // 盐 Uint8Array
+      time: ARGON2_ITERATIONS,
+      mem: ARGON2_MEMORY_KB,
+      hashLen: ARGON2_HASH_LENGTH_BYTES,
+      parallelism: ARGON2_PARALLELISM,
+      type: ARGON2_TYPE,
+      // raw: true // 如果库支持直接返回 Uint8Array 而不是对象
     });
+
+    // argon2-browser 返回一个对象，其中 hash.hash 是 Uint8Array 类型的派生密钥
+    // 如果直接是 Uint8Array，则直接使用 hashResult
+    const derivedKeyUint8Array = hashResult.hash; // 确保这是 Uint8Array
+    
+    return uint8ArrayToWordArray(derivedKeyUint8Array); // 转换为 WordArray 供 CryptoJS 使用
+  } catch (err) {
+    console.error('Argon2 key derivation error:', err);
+    throw new Error('Key derivation failed with Argon2: ' + (err.message || err));
+  }
+}
+
+
+// --- 加密核心逻辑 ---
+async function performEncryption(stringifiedPayload, password) {
+  try {
+    const salt = CryptoJS.lib.WordArray.random(SALT_SIZE_BYTES); // 生成 CryptoJS WordArray 格式的盐
+    const derivedKey = await deriveKeyWithArgon2(password, salt); // 使用 Argon2 派生密钥
 
     const aesKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(0, AES_KEY_SIZE_BITS / 32));
     const hmacKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(AES_KEY_SIZE_BITS / 32));
-    const payloadToEncrypt = JSON.stringify({ message: text, expiry: expiryTimestamp });
+    
     const iv = CryptoJS.lib.WordArray.random(IV_SIZE_BYTES);
-    const encrypted = CryptoJS.AES.encrypt(payloadToEncrypt, aesKey, {
+    const encrypted = CryptoJS.AES.encrypt(stringifiedPayload, aesKey, {
       iv: iv, padding: CryptoJS.pad.Pkcs7, mode: CryptoJS.mode.CBC
     });
     const ciphertext = encrypted.ciphertext;
@@ -45,19 +93,18 @@ function performEncryption(text, password, expiryTimestamp = null) {
 }
 
 // --- 解密核心逻辑 ---
-function performDecryption(combinedStr, password) {
+async function performDecryption(combinedStr, password) {
   try {
     const parts = combinedStr.split('.');
     if (parts.length !== 4) throw new Error("无效的加密数据格式。");
     
-    const salt = base64ToWordArray(parts[0]);
+    const salt = base64ToWordArray(parts[0]); // 从 Base64 转回 WordArray 格式的盐
     const iv = base64ToWordArray(parts[1]);
     const ciphertext = base64ToWordArray(parts[2]);
     const storedMac = base64ToWordArray(parts[3]);
 
-    const derivedKey = CryptoJS.PBKDF2(password, salt, {
-      keySize: DERIVED_KEY_SIZE_BITS / 32, iterations: PBKDF2_ITERATIONS, hasher: CryptoJS.algo.SHA256
-    });
+    const derivedKey = await deriveKeyWithArgon2(password, salt); // 使用 Argon2 派生密钥
+
     const aesKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(0, AES_KEY_SIZE_BITS / 32));
     const hmacKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(AES_KEY_SIZE_BITS / 32));
     const dataToMac = iv.clone().concat(ciphertext);
@@ -77,7 +124,7 @@ function performDecryption(combinedStr, password) {
     if (payload.expiry && Date.now() > payload.expiry) {
       throw new Error(`此密文已于 ${new Date(payload.expiry).toLocaleString()} 过期。`);
     }
-    return payload.message; // 只返回消息内容
+    return payload.message; 
   } catch (error) {
     console.error("Worker decryption error:", error);
     throw new Error("Decryption failed in worker: " + (error.message || "Unknown error"));
@@ -86,21 +133,23 @@ function performDecryption(combinedStr, password) {
 
 
 // --- Worker 消息监听与响应 ---
-self.onmessage = function(event) {
-  const { id, action, data } = event.data; // `action` 会是 'encrypt' 或 'decrypt'
+self.onmessage = async function(event) { // 注意这里改为 async function
+  const { id, action, data } = event.data; 
 
   try {
-    let result;
+    let resultPayload; // 用于存放加密或解密后的核心数据
     if (action === 'encrypt') {
-      const { text, password, expiryTimestamp } = data;
-      result = { encryptedPayload: performEncryption(text, password, expiryTimestamp) };
+      const { stringifiedPayload, password } = data;
+      const encryptedPayload = await performEncryption(stringifiedPayload, password);
+      resultPayload = { encryptedPayload };
     } else if (action === 'decrypt') {
       const { combinedStr, password } = data;
-      result = { decryptedMessage: performDecryption(combinedStr, password) };
+      const decryptedMessage = await performDecryption(combinedStr, password);
+      resultPayload = { decryptedMessage };
     } else {
       throw new Error("Unknown action requested in worker");
     }
-    self.postMessage({ id, ...result });
+    self.postMessage({ id, ...resultPayload });
   } catch (error) {
     self.postMessage({ id, error: error.message });
   }
@@ -108,7 +157,5 @@ self.onmessage = function(event) {
 
 self.onerror = function(errorEvent) {
     console.error("Unhandled error in Crypto Worker:", errorEvent.message, errorEvent);
-    // 可以在这里尝试向主线程发送一个通用错误消息，如果 onmessage 中的 try-catch 没捕获到
-    // self.postMessage({ error: "A critical error occurred in the crypto worker." });
 };
 

@@ -1,6 +1,5 @@
 // frontend/src/services/cryptoService.js
-// CryptoJS 不再需要在主线程中用于加密或解密核心逻辑，但如果其他地方用到它的工具函数可以保留
-// import CryptoJS from 'crypto-js'; 
+// CryptoJS 在主线程中不再直接用于加解密核心逻辑
 
 // --- Web Worker 实例管理 ---
 let cryptoWorker = null; // 单例 Worker
@@ -33,7 +32,7 @@ function callWorker(action, data) {
           console.error(`${action} error from worker (ID: ${messageId}):`, event.data.error);
           reject(new Error(event.data.error));
         } else {
-          resolve(event.data); // Worker 返回整个对象，包含 encryptedPayload 或 decryptedMessage
+          resolve(event.data); 
         }
       }
     };
@@ -50,22 +49,22 @@ function callWorker(action, data) {
 
     worker.postMessage({
       id: messageId,
-      action, // 'encrypt' 或 'decrypt'
-      data      // 包含所需参数的对象
+      action, 
+      data      
     });
   });
 }
 
 
 export const cryptoService = {
-  encrypt: async (text, password, expiryTimestamp = null) => {
-    const result = await callWorker('encrypt', { text, password, expiryTimestamp });
-    return result.encryptedPayload; // 从结果中提取实际的加密负载
+  encrypt: async (stringifiedPayload, password) => { 
+    const result = await callWorker('encrypt', { stringifiedPayload, password });
+    return result.encryptedPayload; 
   },
 
   decrypt: async (combinedStr, password) => {
     const result = await callWorker('decrypt', { combinedStr, password });
-    return result.decryptedMessage; // 从结果中提取实际的解密消息
+    return result.decryptedMessage; 
   }
 };
 
