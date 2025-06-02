@@ -4,7 +4,7 @@ import CryptoJS from 'crypto-js';
 // --- 常量和辅助函数 ---
 const SALT_SIZE_BYTES = 16;
 const IV_SIZE_BYTES = 16;
-const PBKDF2_ITERATIONS = 100000; // 保持较高的迭代次数以确保安全
+const PBKDF2_ITERATIONS = 36985; // 保持较高的迭代次数以确保安全
 const DERIVED_KEY_SIZE_BITS = 512;  // 512 bits (32 bytes for AES + 32 bytes for HMAC)
 const AES_KEY_SIZE_BITS = 256;
 const HMAC_KEY_SIZE_BITS = 256;
