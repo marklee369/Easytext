@@ -156,7 +156,7 @@ const message = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const destructionType = ref('readOnce');
-const expiryOption = ref('1hour');
+const expiryOption = ref('1hour'); // 默认1天，确保与 getExpiryTimestampForPayload 中的 default 匹配
 
 const isLoading = ref(false);
 const showOverlayLoader = ref(true); 
@@ -196,18 +196,33 @@ const isFormValid = () => {
 };
 
 function getExpiryTimestampForPayload() {
-  const now = Date.now();
-  let durationMs = 24 * 60 * 60 * 1000; 
+  const now = Date.now(); // 当前 UTC 时间戳 (毫秒)
+  let durationMs;
+
+  console.log(`CreateSecretView: 当前销毁类型 = ${destructionType.value}, 当前过期选项 = ${expiryOption.value}`);
+
   if (destructionType.value === 'timed') {
     switch (expiryOption.value) {
       case '5min': durationMs = 5 * 60 * 1000; break;
       case '30min': durationMs = 30 * 60 * 1000; break;
       case '1hour': durationMs = 60 * 60 * 1000; break;
       case '6hour': durationMs = 6 * 60 * 1000; break;
-      case '1day': durationMs = 24 * 60 * 1000; break;
+      case '1day': durationMs = 24 * 60 * 60 * 1000; break;
+      default: 
+        console.warn(`CreateSecretView: 未知的 expiryOption '${expiryOption.value}'，默认为1天。`);
+        durationMs = 24 * 60 * 60 * 1000; 
     }
+  } else { // 'readOnce' (阅后即焚)
+    durationMs = 24 * 60 * 60 * 1000; // 内嵌1天作为后备
+    console.log("CreateSecretView: 销毁类型为阅后即焚，内嵌过期时间设置为24小时。");
   }
-  return now + durationMs;
+  const expiryTimestamp = now + durationMs; 
+
+  console.log(`CreateSecretView: 当前时间 (UTC ms): ${now} (${new Date(now).toISOString()})`);
+  console.log(`CreateSecretView: 选择的持续时间 (ms): ${durationMs}`);
+  console.log(`CreateSecretView: 计算得到的过期时间戳 (UTC ms): ${expiryTimestamp} (${new Date(expiryTimestamp).toISOString()})`);
+  
+  return expiryTimestamp;
 }
 
 async function handleCreateSecret() {
@@ -223,13 +238,20 @@ async function handleCreateSecret() {
   await nextTick(); 
 
   try {
-    const embeddedExpiryTimestamp = getExpiryTimestampForPayload();
-    const encryptedPayload = await cryptoService.encrypt(message.value, actualUsedPassword.value, embeddedExpiryTimestamp);
+    const embeddedExpiryTimestamp = getExpiryTimestampForPayload(); 
+    
+    console.log("CreateSecretView: 调用 cryptoService.encrypt，将内嵌 expiryTimestamp:", embeddedExpiryTimestamp, `(${new Date(embeddedExpiryTimestamp).toISOString()})`);
+
+    const finalEncryptedPayload = await cryptoService.encrypt(
+        message.value, 
+        actualUsedPassword.value, 
+        embeddedExpiryTimestamp 
+    );
     
     const readOnceFlag = destructionType.value === 'readOnce';
     const apiExpiryOption = readOnceFlag ? '1day' : expiryOption.value;
 
-    const result = await apiService.createSecret(encryptedPayload, apiExpiryOption, readOnceFlag);
+    const result = await apiService.createSecret(finalEncryptedPayload, apiExpiryOption, readOnceFlag);
     const currentBaseUrl = window.location.origin;
     secretLink.value = `${currentBaseUrl}/s/${result.secretId}`;
 
@@ -269,56 +291,50 @@ function copyLink() {
 </script>
 
 <style scoped lang="scss">
-/* 静态图标跳动光效等样式与上一版本 CreateSecretView.vue 中一致 */
 .create-secret-section {
-  padding-top: 3.6rem;
+  padding-top: 3.6rem; /* 保持您代码中的值 */
   padding-bottom: 3rem;
 
-  // 移动端优化：减少左右内边距，让表单区域更宽
-  @media screen and (max-width: 768px) { // Bulma $tablet - 1px
+  @media screen and (max-width: 768px) {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
 }
 .secret-form-box {
-  background-color: var(--bulma-card-background-color);
+  background-color: var(--bulma-card-background-color); 
   border: 1px solid var(--bulma-border);
-  border-radius: var(--bulma-radius-large);
-  padding: 2rem 2.5rem; // 默认和桌面端内边距
-  position: relative;
-  transition: filter 0.3s ease-out;
+  border-radius: var(--bulma-radius-large); 
+  padding: 2rem 2.5rem; 
+  position: relative; 
+  transition: filter 0.3s ease-out; 
 
-  // 确保在列内居中，并设置最大宽度
-  width: 100%;
+  width: 100%; 
   margin-left: auto;
   margin-right: auto;
-  max-width: 680px; // 默认最大宽度，适用于较小桌面或较大平板
+  max-width: 680px; 
 
-  // 移动端优化：减少盒子内部的左右内边距
   @media screen and (max-width: 768px) {
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-top: 1.5rem; // 也可以适当调整垂直内边距
+    padding-top: 1.5rem; 
     padding-bottom: 1.5rem;
   }
 
-  // 针对标准电脑端 (桌面) 的宽度调整
-  @media screen and (min-width: 1024px) { // Bulma $desktop breakpoint
-    max-width: 760px;
-    padding: 2rem 2.5rem; // 恢复或设置桌面端内边距
+  @media screen and (min-width: 1024px) { 
+    max-width: 760px; 
+    padding: 2rem 2.5rem; 
   }
 
-  // 可选：针对非常宽的屏幕 (FullHD+) 的进一步调整
-  @media screen and (min-width: 1408px) { // Bulma $fullhd breakpoint
-    max-width: 800px;
+  @media screen and (min-width: 1408px) { 
+    max-width: 800px; 
   }
 }
 
 .secret-form-box.is-processing {
-  .form-content-wrapper {
-    filter: blur(3px) opacity(0.6);
-    pointer-events: none;
-    transition: filter 0.2s ease, opacity 0.2s ease;
+  .form-content-wrapper { 
+    filter: blur(3px) opacity(0.6); 
+    pointer-events: none; 
+    transition: filter 0.2s ease, opacity 0.2s ease; 
   }
 }
 
@@ -326,7 +342,7 @@ function copyLink() {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background-color: hsla(220, 22%, 16%, 0.85);
+  background-color: hsla(220, 22%, 16%, 0.85); 
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   display: flex;
@@ -334,16 +350,16 @@ function copyLink() {
   justify-content: center;
   align-items: center;
   z-index: 10;
-  border-radius: var(--bulma-radius-large);
-  opacity: 0;
-  animation: fadeInOverlay 0.2s 0.1s ease-out forwards;
-  pointer-events: auto;
+  border-radius: var(--bulma-radius-large); 
+  opacity: 0; 
+  animation: fadeInOverlay 0.2s 0.1s ease-out forwards; 
+  pointer-events: auto; 
 }
 @keyframes fadeInOverlay {
   to { opacity: 1; }
 }
 
-.loader-icon .svg-inline--fa {
+.loader-icon .svg-inline--fa { 
   color: var(--primary-color);
   filter: drop-shadow(0 0 8px var(--tech-glow-color));
 }
@@ -355,41 +371,41 @@ function copyLink() {
   letter-spacing: 0.5px;
 }
 
-.form-content-wrapper {
+.form-content-wrapper { 
   transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-.brand-icon-page {
-  display: inline-block;
-  position: relative;
-  width: 48px;
+.brand-icon-page { 
+  display: inline-block; 
+  position: relative; 
+  width: 48px; 
   height: 48px;
-  line-height: 48px;
-  text-align: center;
+  line-height: 48px; 
+  text-align: center; 
   vertical-align: middle;
   .svg-inline--fa {
-    vertical-align: middle;
+    vertical-align: middle; 
   }
 }
-.brand-icon-page .svg-inline--fa {
+.brand-icon-page .svg-inline--fa { 
   color: var(--primary-color);
-  animation: pulse-glow 2.5s infinite ease-in-out;
-  transform-origin: center center;
-  position: relative;
-  z-index: 1;
+  animation: pulse-glow 2.5s infinite ease-in-out; 
+  transform-origin: center center; 
+  position: relative; 
+  z-index: 1; 
 }
 
 @keyframes pulse-glow {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 5px var(--tech-glow-color, hsla(180, 100%, 70%, 0.3)))
+    filter: drop-shadow(0 0 5px var(--tech-glow-color, hsla(180, 100%, 70%, 0.3))) 
             drop-shadow(0 0 2px var(--primary-color, hsl(180, 100%, 55%)));
     opacity: 0.9;
   }
   50% {
-    transform: scale(1.08);
-    filter: drop-shadow(0 0 12px var(--tech-glow-color, hsla(180, 100%, 70%, 0.5)))
-            drop-shadow(0 0 6px var(--primary-color, hsl(180, 100%, 55%)));
+    transform: scale(1.08); 
+    filter: drop-shadow(0 0 12px var(--tech-glow-color, hsla(180, 100%, 70%, 0.5))) 
+            drop-shadow(0 0 6px var(--primary-color, hsl(180, 100%, 55%))); 
     opacity: 1;
   }
 }
@@ -406,26 +422,26 @@ function copyLink() {
 }
 .label {
   color: var(--bulma-text-strong);
-  font-weight: 500;
-  font-size: 0.9rem;
-  text-transform: uppercase;
+  font-weight: 500; 
+  font-size: 0.9rem; 
+  text-transform: uppercase; 
   letter-spacing: 0.5px;
 }
 .label-extra-info {
   color: var(--bulma-text-light);
   font-weight: 400;
-  text-transform: none;
+  text-transform: none; 
   font-size: 0.8rem;
   margin-left: 0.5em;
 }
 .tech-input, .tech-select select {
-  font-family: var(--tech-font-family-sans);
+  font-family: var(--tech-font-family-sans); 
 }
 .tech-select select {
-  font-family: var(--tech-font-family-sans);
+  font-family: var(--tech-font-family-sans); 
 }
 .password-toggle-icon {
-  height: 100% !important;
+  height: 100% !important; 
   width: 2.5em !important;
   display: inline-flex;
   align-items: center;
@@ -436,49 +452,49 @@ function copyLink() {
   }
 }
 
-.destruction-options-container {
+.destruction-options-container { 
   display: flex;
-  justify-content: center;
+  justify-content: center; 
 }
 .destruction-options {
-  display: inline-flex;
+  display: inline-flex; 
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.75rem;
-  padding-bottom: 5px;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
+  flex-wrap: nowrap; 
+  gap: 0.75rem;     
+  padding-bottom: 5px; 
+  max-width: 100%; 
+  overflow-x: auto; 
+  -webkit-overflow-scrolling: touch; 
+  scrollbar-width: none; 
+  &::-webkit-scrollbar { 
     display: none;
   }
 
   .tech-radio {
-    flex-shrink: 1;
-    min-width: 0;
+    flex-shrink: 1; 
+    min-width: 0; 
   }
 
   .radio-label {
-    padding: 0.4em 0.6em 0.4em 1.7em;
-    font-size: 0.85rem;
-    white-space: nowrap;
+    padding: 0.4em 0.6em 0.4em 1.7em; 
+    font-size: 0.85rem; 
+    white-space: nowrap; 
 
-    .svg-inline--fa {
+    .svg-inline--fa { 
         margin-right: 0.3em;
     }
     &:before { left: 0.3em; width: 13px; height: 13px; top: calc(50% - 7.5px); }
-    &:after { left: calc(0.3em + 2.5px); top: calc(50% - 4px); width: 8px; height: 8px; }
+    &:after { left: calc(0.3em + 2.5px); top: calc(50% - 4px); width: 8px; height: 8px; } 
   }
 }
 
-@media screen and (max-width: 360px) {
+@media screen and (max-width: 360px) { 
   .destruction-options {
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: wrap; 
+    justify-content: center; 
     gap: 0.5rem;
     .tech-radio {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.5rem; 
       &:last-child {
         margin-bottom: 0;
       }
@@ -486,8 +502,8 @@ function copyLink() {
   }
 }
 
-.tech-radio input[type="radio"] {
-  opacity: 0; width: 0; height: 0;
+.tech-radio input[type="radio"] { 
+  opacity: 0; width: 0; height: 0; 
   & + .radio-label {
     position: relative;
     cursor: pointer;
@@ -495,18 +511,18 @@ function copyLink() {
     border: 1px solid var(--bulma-border);
     border-radius: var(--bulma-radius);
     transition: all 0.2s ease;
-    display: inline-flex;
+    display: inline-flex; 
     align-items: center;
 
-    &:before {
+    &:before { 
       content: '';
       position: absolute;
       border: 2px solid var(--bulma-border);
       border-radius: 50%;
-      background: transparent;
+      background: transparent; 
       transition: border-color 0.2s ease;
     }
-    &:after {
+    &:after { 
       content: '';
       position: absolute;
       border-radius: 50%;
@@ -538,8 +554,8 @@ function copyLink() {
 }
 .submit-button {
   font-weight: 500;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  letter-spacing: 0.8px; 
+  text-transform: uppercase; 
   &.is-loading::after {
     border-color: transparent transparent var(--bulma-primary-invert) var(--bulma-primary-invert) !important;
   }
@@ -550,38 +566,38 @@ function copyLink() {
   padding: 1rem 1.5rem;
 }
 .result-panel { }
-.result-title {
-  color: var(--bulma-success-strong);
+.result-title { 
+  color: var(--bulma-success-strong); 
   font-family: var(--tech-font-family-mono, monospace);
 }
-.result-subtitle {
+.result-subtitle { 
   color: var(--bulma-text-light);
 }
-.result-link-input {
+.result-link-input { 
   font-family: var(--tech-font-family-mono, monospace);
   font-size: 0.9rem;
   background-color: color-mix(in srgb, var(--bulma-info) 5%, var(--bulma-input-background-color));
   border-color: var(--bulma-info);
 }
-.copy-button .svg-inline--fa {
-  color: var(--bulma-info-invert);
+.copy-button .svg-inline--fa { 
+  color: var(--bulma-info-invert); 
 }
 
 .password-disclosure {
   color: var(--bulma-text-light);
   .password-emphasis {
-    color: var(--view-password-disclosure-danger-text, var(--bulma-danger));
+    color: var(--view-password-disclosure-danger-text, var(--bulma-danger)); 
     font-weight: 600;
   }
 }
 .default-password-notice {
   color: var(--view-default-password-notice-warning-text, var(--bulma-warning));
   .icon {
-    vertical-align: middle;
+    vertical-align: middle; 
   }
 }
 .help {
-  font-size: 0.8rem;
+  font-size: 0.8rem; 
   font-family: var(--tech-font-family-sans);
 }
 </style>
