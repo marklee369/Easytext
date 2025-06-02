@@ -1,17 +1,11 @@
 // frontend/src/workers/crypto.worker.js
 import CryptoJS from 'crypto-js';
-import argon2 from 'argon2-browser'; // 导入 argon2-browser
 
 // --- 加密/解密共用的常量 ---
 const SALT_SIZE_BYTES = 16;
 const IV_SIZE_BYTES = 16;
-// Argon2 参数 (可以根据您的目标性能和安全级别进行调整)
-const ARGON2_ITERATIONS = 1;       // 时间成本 (t_cost) - 迭代次数
-const ARGON2_MEMORY_KB = 17 * 1024;  // 内存成本 (m_cost) - 单位 KiB (例如 19MB = 19456 KiB)
-const ARGON2_PARALLELISM = 1;      // 并行度 (p)
-const ARGON2_HASH_LENGTH_BYTES = 64; // 派生密钥长度，512 bits (32 bytes for AES + 32 bytes for HMAC)
-const ARGON2_TYPE = argon2.ArgonType.Argon2id; // 使用 Argon2id
-
+const PBKDF2_ITERATIONS = 36936; // 您可以根据需要在速度和安全之间调整此值
+const DERIVED_KEY_SIZE_BITS = 512;  // 派生密钥的总位数 (256给AES, 256给HMAC)
 const AES_KEY_SIZE_BITS = 256;
 const HMAC_KEY_SIZE_BITS = 256;
 
@@ -23,56 +17,26 @@ function base64ToWordArray(base64Str) {
   return CryptoJS.enc.Base64.parse(base64Str);
 }
 
-// CryptoJS WordArray to Uint8Array
-function wordArrayToUint8Array(wordArray) {
-  const l = wordArray.sigBytes;
-  const words = wordArray.words;
-  const u8 = new Uint8Array(l);
-  for (let i = 0; i < l; i++) {
-    u8[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
-  }
-  return u8;
-}
-
-// Uint8Array to CryptoJS WordArray
-function uint8ArrayToWordArray(u8Array) {
-  return CryptoJS.lib.WordArray.create(u8Array);
-}
-
-
-// --- 异步密钥派生函数 (使用 Argon2) ---
-async function deriveKeyWithArgon2(password, saltWordArray) {
+// --- 密钥派生函数 (使用 PBKDF2) ---
+function deriveKeyWithPBKDF2(password, saltWordArray) {
   try {
-    const saltUint8Array = wordArrayToUint8Array(saltWordArray); // Argon2 库通常需要 Uint8Array 格式的盐
-
-    const hashResult = await argon2.hash({
-      pass: password, // 密码字符串
-      salt: saltUint8Array, // 盐 Uint8Array
-      time: ARGON2_ITERATIONS,
-      mem: ARGON2_MEMORY_KB,
-      hashLen: ARGON2_HASH_LENGTH_BYTES,
-      parallelism: ARGON2_PARALLELISM,
-      type: ARGON2_TYPE,
-      // raw: true // 如果库支持直接返回 Uint8Array 而不是对象
+    const derivedKey = CryptoJS.PBKDF2(password, saltWordArray, {
+      keySize: DERIVED_KEY_SIZE_BITS / 32, // keySize is in 32-bit words
+      iterations: PBKDF2_ITERATIONS,
+      hasher: CryptoJS.algo.SHA256 // 可以选择 SHA256 或 SHA512
     });
-
-    // argon2-browser 返回一个对象，其中 hash.hash 是 Uint8Array 类型的派生密钥
-    // 如果直接是 Uint8Array，则直接使用 hashResult
-    const derivedKeyUint8Array = hashResult.hash; // 确保这是 Uint8Array
-    
-    return uint8ArrayToWordArray(derivedKeyUint8Array); // 转换为 WordArray 供 CryptoJS 使用
+    return derivedKey; // 返回 CryptoJS WordArray
   } catch (err) {
-    console.error('Argon2 key derivation error:', err);
-    throw new Error('Key derivation failed with Argon2: ' + (err.message || err));
+    console.error('PBKDF2 key derivation error:', err);
+    throw new Error('Key derivation failed with PBKDF2: ' + (err.message || err));
   }
 }
-
 
 // --- 加密核心逻辑 ---
-async function performEncryption(stringifiedPayload, password) {
+function performEncryption(stringifiedPayload, password) {
   try {
-    const salt = CryptoJS.lib.WordArray.random(SALT_SIZE_BYTES); // 生成 CryptoJS WordArray 格式的盐
-    const derivedKey = await deriveKeyWithArgon2(password, salt); // 使用 Argon2 派生密钥
+    const salt = CryptoJS.lib.WordArray.random(SALT_SIZE_BYTES);
+    const derivedKey = deriveKeyWithPBKDF2(password, salt); // 使用 PBKDF2 派生密钥
 
     const aesKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(0, AES_KEY_SIZE_BITS / 32));
     const hmacKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(AES_KEY_SIZE_BITS / 32));
@@ -93,17 +57,17 @@ async function performEncryption(stringifiedPayload, password) {
 }
 
 // --- 解密核心逻辑 ---
-async function performDecryption(combinedStr, password) {
+function performDecryption(combinedStr, password) {
   try {
     const parts = combinedStr.split('.');
     if (parts.length !== 4) throw new Error("无效的加密数据格式。");
     
-    const salt = base64ToWordArray(parts[0]); // 从 Base64 转回 WordArray 格式的盐
+    const salt = base64ToWordArray(parts[0]);
     const iv = base64ToWordArray(parts[1]);
     const ciphertext = base64ToWordArray(parts[2]);
     const storedMac = base64ToWordArray(parts[3]);
 
-    const derivedKey = await deriveKeyWithArgon2(password, salt); // 使用 Argon2 派生密钥
+    const derivedKey = deriveKeyWithPBKDF2(password, salt); // 使用 PBKDF2 派生密钥
 
     const aesKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(0, AES_KEY_SIZE_BITS / 32));
     const hmacKey = CryptoJS.lib.WordArray.create(derivedKey.words.slice(AES_KEY_SIZE_BITS / 32));
@@ -121,10 +85,39 @@ async function performDecryption(combinedStr, password) {
     if (!decryptedPayloadJson) throw new Error("解密后内容为空，可能是密码错误。");
     
     const payload = JSON.parse(decryptedPayloadJson);
-    if (payload.expiry && Date.now() > payload.expiry) {
-      throw new Error(`此密文已于 ${new Date(payload.expiry).toLocaleString()} 过期。`);
+    // 文件加密时，payload 是 {type, filename, filetype, content_base64, description, expiry}
+    // 文本加密时，payload 是 {type, message, expiry}
+    // Worker 应该只返回解密后的原始 JSON 字符串或其解析后的对象，而不是直接返回 payload.message
+    // 为了与 cryptoService.js 的期望匹配（它期望 decrypt 返回 message 字符串），我们这里先这样处理
+    // 但更通用的做法是 Worker 返回整个 payload 对象，由主线程的 cryptoService 再处理
+    if (payload.type === 'file') {
+        // 对于文件，主线程可能需要整个 payload 来处理下载
+        // 为了简单，我们让 worker 直接返回解析后的 payload 对象
+        // 然后 cryptoService.js 的 decrypt 方法需要调整以适应这一点
+        // 或者，让 worker 仍然只返回 payload.message (对于文本) 或 payload (对于文件)
+        // 为了保持 cryptoService.js 的 decrypt 返回值一致性（都是字符串消息或文件内容），
+        // 这里我们假设对于文件，我们仍然返回一个可识别的结构，或者让主线程处理。
+        // 简单起见，如果 payload 结构是 { message: "actual content string" }，则返回 message
+        // 如果是文件，则返回整个 payload 对象，让主线程的 cryptoService.js 处理
+        if (payload.message !== undefined) { // 假设文本秘密总是有 message 字段
+            if (payload.expiry && Date.now() > payload.expiry) {
+                throw new Error(`此密文已于 ${new Date(payload.expiry).toLocaleString()} 过期。`);
+            }
+            return payload.message; 
+        } else { // 假设是文件或其他复杂结构
+            // 对于文件，过期检查应该在主线程解析出 expiry 后进行
+            return JSON.stringify(payload); // 返回整个 payload 的字符串形式，让主线程解析
+        }
+
+    } else if (payload.message !== undefined) { // 文本类型
+        if (payload.expiry && Date.now() > payload.expiry) {
+            throw new Error(`此密文已于 ${new Date(payload.expiry).toLocaleString()} 过期。`);
+        }
+        return payload.message;
+    } else {
+        throw new Error("Decrypted payload does not contain a message or expected file structure.");
     }
-    return payload.message; 
+
   } catch (error) {
     console.error("Worker decryption error:", error);
     throw new Error("Decryption failed in worker: " + (error.message || "Unknown error"));
@@ -133,19 +126,37 @@ async function performDecryption(combinedStr, password) {
 
 
 // --- Worker 消息监听与响应 ---
-self.onmessage = async function(event) { // 注意这里改为 async function
+self.onmessage = async function(event) { // 改为 async 以便 performEncryption/Decryption 可以是 async
   const { id, action, data } = event.data; 
 
   try {
-    let resultPayload; // 用于存放加密或解密后的核心数据
+    let resultPayload; 
     if (action === 'encrypt') {
       const { stringifiedPayload, password } = data;
-      const encryptedPayload = await performEncryption(stringifiedPayload, password);
+      // performEncryption 现在是同步的，因为它内部的 deriveKeyWithPBKDF2 是同步的
+      const encryptedPayload = performEncryption(stringifiedPayload, password);
       resultPayload = { encryptedPayload };
     } else if (action === 'decrypt') {
       const { combinedStr, password } = data;
-      const decryptedMessage = await performDecryption(combinedStr, password);
-      resultPayload = { decryptedMessage };
+      // performDecryption 现在是同步的
+      const decryptedOutput = performDecryption(combinedStr, password);
+      // 根据 performDecryption 的返回值调整
+      // 如果它返回的是 message 字符串 (文本) 或 stringified payload (文件)
+      if (typeof decryptedOutput === 'string') {
+          try {
+              // 尝试解析，如果是文件payload的JSON字符串
+              const parsed = JSON.parse(decryptedOutput);
+              if (parsed.type === 'file') {
+                  resultPayload = { decryptedFilePayload: parsed };
+              } else { // 认为是文本消息
+                  resultPayload = { decryptedMessage: decryptedOutput };
+              }
+          } catch (e) { // 不是JSON，认为是纯文本消息
+              resultPayload = { decryptedMessage: decryptedOutput };
+          }
+      } else { // 理论上不应该到这里，因为 performDecryption 返回字符串
+          resultPayload = { decryptedMessage: "Unknown decryption result type" };
+      }
     } else {
       throw new Error("Unknown action requested in worker");
     }

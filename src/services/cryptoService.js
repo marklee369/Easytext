@@ -1,8 +1,7 @@
 // frontend/src/services/cryptoService.js
-// CryptoJS 在主线程中不再直接用于加解密核心逻辑
 
-// --- Web Worker 实例管理 ---
-let cryptoWorker = null; // 单例 Worker
+// Web Worker 实例管理
+let cryptoWorker = null;
 
 function getCryptoWorker() {
   if (!cryptoWorker) {
@@ -17,7 +16,6 @@ function getCryptoWorker() {
   return cryptoWorker;
 }
 
-// 辅助函数，用于向Worker发送消息并处理响应
 function callWorker(action, data) {
   return new Promise((resolve, reject) => {
     const worker = getCryptoWorker();
@@ -64,7 +62,20 @@ export const cryptoService = {
 
   decrypt: async (combinedStr, password) => {
     const result = await callWorker('decrypt', { combinedStr, password });
-    return result.decryptedMessage; 
+    // Worker 现在可能返回 decryptedMessage (文本) 或 decryptedFilePayload (文件对象)
+    if (result.decryptedMessage) {
+      return result.decryptedMessage; // 返回文本消息
+    } else if (result.decryptedFilePayload) {
+      // 如果是文件，我们返回整个对象，让 ViewSecretView.vue 处理
+      // 为了与之前的返回类型（字符串）保持某种程度的一致性，
+      // 我们可以选择在这里就将文件payload对象转回JSON字符串，
+      // 或者直接返回对象，并在ViewSecretView中调整逻辑。
+      // 为了ViewSecretView的改动最小，我们这里返回JSON字符串。
+      // ViewSecretView.vue 中的 handleDecrypt 会 JSON.parse() 它。
+      return JSON.stringify(result.decryptedFilePayload);
+    } else {
+      throw new Error("Unknown data structure received from decryption worker.");
+    }
   }
 };
 
