@@ -45,7 +45,7 @@
 * **客户端加密库 (Client-side Encryption):** CryptoJS (用于 PBKDF2 密钥派生, AES-256-CBC 加密, HMAC-SHA256 消息认证)
     * **对称加密与消息认证 (Symmetric Encryption & MAC):** `crypto-js` (用于 AES-256-CBC 加密, HMAC-SHA256 消息认证)
 * **Markdown 处理 (Markdown Processing):** `marked` (用于解析 Markdown), `dompurify` (用于净化 HTML 输出以防 XSS)
-* **Web Workers:** 用于在后台线程执行基于 Argon2 的密钥派生、AES 加密和解密操作。
+* **Web Workers:** 用于在后台线程执行基于 AES 加密和解密操作。
 
 **后端 (Backend):**
 
