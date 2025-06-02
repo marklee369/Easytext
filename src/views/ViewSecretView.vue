@@ -213,43 +213,58 @@ async function handleDecrypt() {
 
 <style scoped lang="scss">
 .view-secret-section {
-  padding-top: 6rem;
+  padding-top: 3.6rem;
   padding-bottom: 3rem;
+
+  // 移动端优化：减少左右内边距
+  @media screen and (max-width: 768px) { // Bulma $tablet - 1px
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }
 .secret-display-box {
-  background-color: var(--bulma-card-background-color); 
+  background-color: var(--bulma-card-background-color);
   border: 1px solid var(--bulma-border);
-  border-radius: var(--bulma-radius-large); 
-  padding: 2rem 2.5rem; 
-  position: relative; 
+  border-radius: var(--bulma-radius-large);
+  padding: 2rem 2.5rem; // 默认和桌面端内边距
+  position: relative;
   transition: filter 0.3s ease-out;
 
-  /* 默认和移动端/平板端行为 */
-  width: 100%; 
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-width: 680px; /* 与创建页面保持一致的基础最大宽度 */
+  max-width: 680px; // 默认最大宽度
 
-  /* 针对电脑端 (桌面) 的宽度调整 */
-  @media screen and (min-width: 1024px) { 
-    max-width: 760px; 
+  // 移动端优化：减少盒子内部的左右内边距
+  @media screen and (max-width: 768px) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
   }
 
-  /* 可选：针对非常宽的屏幕 (FullHD+) 的进一步调整 */
-  @media screen and (min-width: 1408px) { 
-    max-width: 800px; 
+  @media screen and (min-width: 1024px) {
+    max-width: 760px;
+    padding: 2rem 2.5rem; // 确保桌面端内边距恢复或设置
+  }
+
+  @media screen and (min-width: 1408px) {
+    max-width: 800px;
   }
 }
 
+/* ... (其余所有 .secret-display-box.is-processing, .form-loading-overlay, 等样式保持不变) ... */
+/* 确保 @keyframes pulse-glow 和 .brand-icon-page .svg-inline--fa 的动画样式也存在于此文件中，如果它们是独立的 */
+
 .secret-display-box.is-processing {
-  .password-prompt-panel { 
+  .password-prompt-panel {
     filter: blur(3px) opacity(0.6);
     pointer-events: none;
     transition: filter 0.2s ease, opacity 0.2s ease;
   }
 }
 
-.form-loading-overlay { 
+.form-loading-overlay {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
@@ -260,8 +275,8 @@ async function handleDecrypt() {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 10; 
-  border-radius: var(--bulma-radius-large); 
+  z-index: 10;
+  border-radius: var(--bulma-radius-large);
   opacity: 0;
   animation: fadeInOverlay 0.2s 0.1s ease-out forwards;
   pointer-events: auto;
@@ -269,7 +284,7 @@ async function handleDecrypt() {
 @keyframes fadeInOverlay {
   to { opacity: 1; }
 }
-.loader-icon .svg-inline--fa { 
+.loader-icon .svg-inline--fa {
   color: var(--primary-color);
   filter: drop-shadow(0 0 8px var(--tech-glow-color));
 }
@@ -281,7 +296,7 @@ async function handleDecrypt() {
   letter-spacing: 0.5px;
 }
 
-.view-content-wrapper { 
+.view-content-wrapper {
   transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
@@ -294,41 +309,41 @@ async function handleDecrypt() {
   color: var(--bulma-text-light);
 }
 
-.brand-icon-page { 
+.brand-icon-page {
   display: inline-block;
-  position: relative; 
-  width: 48px; 
+  position: relative;
+  width: 48px;
   height: 48px;
-  line-height: 48px; 
-  text-align: center; 
+  line-height: 48px;
+  text-align: center;
   vertical-align: middle;
   .svg-inline--fa {
-    vertical-align: middle; 
+    vertical-align: middle;
   }
 }
-.brand-icon-page .svg-inline--fa { 
+.brand-icon-page .svg-inline--fa {
   color: var(--primary-color);
-  animation: pulse-glow 2.5s infinite ease-in-out; 
-  transform-origin: center center; 
-  position: relative; 
-  z-index: 1; 
+  animation: pulse-glow 2.5s infinite ease-in-out;
+  transform-origin: center center;
+  position: relative;
+  z-index: 1;
 }
-.brand-icon-page.is-static .svg-inline--fa { 
+.brand-icon-page.is-static .svg-inline--fa {
     animation: none;
-    filter: drop-shadow(0 0 5px var(--tech-glow-color)); 
+    filter: drop-shadow(0 0 5px var(--tech-glow-color));
 }
 
 @keyframes pulse-glow {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 5px var(--tech-glow-color, hsla(180, 100%, 70%, 0.3))) 
+    filter: drop-shadow(0 0 5px var(--tech-glow-color, hsla(180, 100%, 70%, 0.3)))
             drop-shadow(0 0 2px var(--primary-color, hsl(180, 100%, 55%)));
     opacity: 0.9;
   }
   50% {
-    transform: scale(1.08); 
-    filter: drop-shadow(0 0 12px var(--tech-glow-color, hsla(180, 100%, 70%, 0.5))) 
-            drop-shadow(0 0 6px var(--primary-color, hsl(180, 100%, 55%))); 
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 12px var(--tech-glow-color, hsla(180, 100%, 70%, 0.5)))
+            drop-shadow(0 0 6px var(--primary-color, hsl(180, 100%, 55%)));
     opacity: 1;
   }
 }
@@ -345,21 +360,21 @@ async function handleDecrypt() {
 }
 .label {
   color: var(--bulma-text-strong);
-  font-weight: 500; 
-  font-size: 0.9rem; 
-  text-transform: uppercase; 
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .label-extra-info {
   color: var(--bulma-text-light);
   font-weight: 400;
-  text-transform: none; 
+  text-transform: none;
   font-size: 0.8rem;
   margin-left: 0.5em;
 }
 .tech-input { }
 .password-toggle-icon {
-  height: 100% !important; 
+  height: 100% !important;
   width: 2.5em !important;
   display: inline-flex;
   align-items: center;
@@ -376,8 +391,8 @@ async function handleDecrypt() {
 }
 .submit-button {
   font-weight: 500;
-  letter-spacing: 0.8px; 
-  text-transform: uppercase; 
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   &.is-loading::after {
     border-color: transparent transparent var(--bulma-primary-invert) var(--bulma-primary-invert) !important;
   }
@@ -387,7 +402,7 @@ async function handleDecrypt() {
   border-left-width: 4px;
   padding: 1rem 1.5rem;
 }
-.custom-notification-inline { 
+.custom-notification-inline {
   background-color: color-mix(in srgb, var(--bulma-scheme-main-bis, var(--bulma-body-background-color)) 70%, transparent);
   border: 1px solid var(--bulma-border-light, var(--bulma-border));
   &.is-warning {
@@ -397,7 +412,7 @@ async function handleDecrypt() {
     border-left-color: var(--bulma-info);
   }
 }
-.markdown-body { 
+.markdown-body {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -405,12 +420,12 @@ async function handleDecrypt() {
   font-family: var(--tech-font-family-mono, monospace);
   color: var(--bulma-text-light);
 }
-.animated-entry { 
+.animated-entry {
   opacity: 0;
   transform: translateY(15px) scale(0.98);
   animation: fadeInUpMoreView 0.5s 0.1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
 }
-@keyframes fadeInUpMoreView { 
+@keyframes fadeInUpMoreView {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
