@@ -152,10 +152,10 @@ function validateEncryptParams(textMessage, password) {
   
   // 检查消息大小
   const size = new Blob([textMessage]).size;
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  const maxSize = 5 * 1024 * 1024; // 5MB (与 worker 保持一致)
   
   if (size > maxSize) {
-    throw new Error(`消息过大 (${(size / 1024 / 1024).toFixed(2)}MB)，最大支持 10MB`);
+    throw new Error(`消息过大 (${(size / 1024 / 1024).toFixed(2)}MB)，最大支持 5MB`);
   }
 }
 
