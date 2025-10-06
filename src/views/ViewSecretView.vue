@@ -124,7 +124,7 @@ const contentContainer = ref(null);
 const defaultPasswordValue = "MrLee";
 
 const renderedMarkdown = computed(() => {
-  return sanitizedMarkdownService.render(decryptedMessage.value);
+  return markdownService.render(decryptedMessage.value);
 });
 
 const formatExpiryOption = (option) => {
