@@ -105,9 +105,6 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { cryptoService } from '../services/cryptoService';
 import { apiService } from '../services/apiService';
 import { sanitizedMarkdownService } from '../services/sanitizedMarkdownService';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/atom-one-dark.css';
-
 const props = defineProps({
   secretId: { type: String, required: true }
 });
