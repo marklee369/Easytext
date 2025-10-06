@@ -3,7 +3,6 @@ import DOMPurify from 'dompurify';
 
 class SanitizedMarkdownService {
   constructor() {
-    // 您可以在这里配置 Marked.js 的选项
     marked.setOptions({
       breaks: true, // 将 \n 转换为 <br>
       gfm: true,    // 启用 GitHub Flavored Markdown
