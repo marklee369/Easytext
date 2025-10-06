@@ -1,24 +1,33 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-marked.setOptions({
-  renderer: new marked.Renderer(),
-  gfm: true,
-  breaks: true, // 将换行符渲染为 <br>
-  pedantic: false,
-  sanitize: false, // 重要：我们使用 DOMPurify 进行净化
-  smartLists: true,
-  smartypants: false,
-});
-
-export const markdownService = {
-  render: (markdownText) => {
-    if (typeof markdownText !== 'string') return '';
-    const rawHtml = marked.parse(markdownText);
-    return DOMPurify.sanitize(rawHtml, {
-        USE_PROFILES: { html: true }, // 允许基本的HTML标签
-        ADD_ATTR: ['target'], // 如果你希望允许target="_blank"等
+class SanitizedMarkdownService {
+  constructor() {
+    // 您可以在这里配置 Marked.js 的选项
+    marked.setOptions({
+      breaks: true, // 将 \n 转换为 <br>
+      gfm: true,    // 启用 GitHub Flavored Markdown
+      pedantic: false,
     });
   }
-};
 
+  /**
+   * 将 Markdown 字符串安全地转换为净化后的 HTML
+   * @param {string} markdownText - 需要转换的 Markdown 文本
+   * @returns {string} - 安全的 HTML 字符串
+   */
+  render(markdownText) {
+    if (typeof markdownText !== 'string' || markdownText.trim() === '') {
+      return '';
+    }
+    // 1. 将 Markdown 转换为 HTML
+    const dirtyHtml = marked.parse(markdownText);
+    
+    // 2. 使用 DOMPurify 清理 HTML，防止 XSS 攻击
+    const cleanHtml = DOMPurify.sanitize(dirtyHtml);
+
+    return cleanHtml;
+  }
+}
+
+export const sanitizedMarkdownService = new SanitizedMarkdownService();
