@@ -1,7 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-class markdownService {
+class markdown {
   constructor() {
     marked.setOptions({
       breaks: true, // 将 \n 转换为 <br>
@@ -29,4 +29,4 @@ class markdownService {
   }
 }
 
-export const markdownService = new markdownService();
+export const markdownService = new markdown();
