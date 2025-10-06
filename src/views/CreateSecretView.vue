@@ -114,7 +114,7 @@
             </div>
 
             <div v-if="secretLink && !isLoading" class="notification is-success is-light mt-5 custom-notification result-panel animated-entry">
-               <button class="delete" @click="clearSecretLinkState"></button>
+               <button class="delete" @click="resetResultState"></button>
               <h4 class="title is-5 result-title">链接已生成！</h4>
               <p class="result-subtitle">请复制并分享此链接。链接和内容将在指定条件下销毁。</p>
               <div class="field has-addons mt-3">
@@ -156,7 +156,7 @@ const message = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const destructionType = ref('readOnce');
-const expiryOption = ref('1hour'); // 默认1天，确保与 getExpiryTimestampForPayload 中的 default 匹配
+const expiryOption = ref('1hour');
 
 const isLoading = ref(false);
 const showOverlayLoader = ref(true); 
@@ -179,6 +179,14 @@ const usedPasswordForDisplay = computed(() => {
   return isDefaultPasswordUsed.value ? `默认密码 "${defaultPasswordValue}"` : "您设置的加密密码";
 });
 
+function resetResultState() {
+  secretLink.value = '';
+  actualUsedPassword.value = '';
+  copyButtonText.value = '复制';
+  copyIcon.value = ['fas', 'copy'];
+  generalError.value = '';
+}
+
 const isFormValid = () => {
   let valid = true;
   messageError.value = '';
@@ -196,43 +204,33 @@ const isFormValid = () => {
 };
 
 function getExpiryTimestampForPayload() {
-  const now = Date.now(); // 当前 UTC 时间戳 (毫秒)
+  const now = Date.now();
   let durationMs;
-
-  console.log(`CreateSecretView: 当前销毁类型 = ${destructionType.value}, 当前过期选项 = ${expiryOption.value}`);
 
   if (destructionType.value === 'timed') {
     switch (expiryOption.value) {
       case '5min': durationMs = 5 * 60 * 1000; break;
       case '30min': durationMs = 30 * 60 * 1000; break;
       case '1hour': durationMs = 60 * 60 * 1000; break;
-      case '6hour': durationMs = 6 * 60 * 1000; break;
+      case '6hour': durationMs = 6 * 60 * 60 * 1000; break;
       case '1day': durationMs = 24 * 60 * 60 * 1000; break;
       default: 
-        console.warn(`CreateSecretView: 未知的 expiryOption '${expiryOption.value}'，默认为1天。`);
         durationMs = 24 * 60 * 60 * 1000; 
     }
-  } else { // 'readOnce' (阅后即焚)
-    durationMs = 24 * 60 * 60 * 1000; // 内嵌1天作为后备
-    console.log("CreateSecretView: 销毁类型为阅后即焚，内嵌过期时间设置为24小时。");
+  } else {
+    durationMs = 24 * 60 * 60 * 1000;
   }
-  const expiryTimestamp = now + durationMs; 
-
-  console.log(`CreateSecretView: 当前时间 (UTC ms): ${now} (${new Date(now).toISOString()})`);
-  console.log(`CreateSecretView: 选择的持续时间 (ms): ${durationMs}`);
-  console.log(`CreateSecretView: 计算得到的过期时间戳 (UTC ms): ${expiryTimestamp} (${new Date(expiryTimestamp).toISOString()})`);
-  
-  return expiryTimestamp;
+  return now + durationMs;
 }
 
 async function handleCreateSecret() {
-  generalError.value = ''; 
+  resetResultState();
+  
   if (!isFormValid()) {
     return;
   }
 
   isLoading.value = true; 
-  secretLink.value = ''; 
   actualUsedPassword.value = password.value.trim() === '' ? defaultPasswordValue : password.value;
 
   await nextTick(); 
@@ -240,8 +238,6 @@ async function handleCreateSecret() {
   try {
     const embeddedExpiryTimestamp = getExpiryTimestampForPayload(); 
     
-    console.log("CreateSecretView: 调用 cryptoService.encrypt，将内嵌 expiryTimestamp:", embeddedExpiryTimestamp, `(${new Date(embeddedExpiryTimestamp).toISOString()})`);
-
     const finalEncryptedPayload = await cryptoService.encrypt(
         message.value, 
         actualUsedPassword.value, 
@@ -263,11 +259,6 @@ async function handleCreateSecret() {
   }
 }
 
-function clearSecretLinkState() {
-  secretLink.value = '';
-  actualUsedPassword.value = '';
-}
-
 function copyLink() {
   if (linkInputRef.value && secretLink.value) {
     linkInputRef.value.select();
@@ -277,8 +268,9 @@ function copyLink() {
       copyIcon.value = ['fas', 'check-circle'];
       
       setTimeout(() => { 
-        clearSecretLinkState(); 
-      }, 1500);
+        copyButtonText.value = '复制';
+        copyIcon.value = ['fas', 'copy'];
+      }, 2000);
 
     } catch (err) {
       console.error('Failed to copy link: ', err);
@@ -292,7 +284,7 @@ function copyLink() {
 
 <style scoped lang="scss">
 .create-secret-section {
-  padding-top: 3.6rem; /* 保持您代码中的值 */
+  padding-top: 3.6rem;
   padding-bottom: 3rem;
 
   @media screen and (max-width: 768px) {
@@ -601,4 +593,3 @@ function copyLink() {
   font-family: var(--tech-font-family-sans);
 }
 </style>
-
