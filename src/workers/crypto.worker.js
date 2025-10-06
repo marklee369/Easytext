@@ -4,13 +4,13 @@ import CryptoJS from 'crypto-js';
 // ==================== 常量配置 ====================
 const CRYPTO_CONFIG = {
   SALT_SIZE_BYTES: 16,
-  IV_SIZE_BYTES: 12, // GCM 推荐使用 12 字节 IV
+  IV_SIZE_BYTES: 16,
   PBKDF2_ITERATIONS: 100000, // 提高到 100000 次迭代增强安全性
-  KEY_SIZE_BITS: 256, // AES-256
-  KEY_SIZE_BYTES: 32,
-  TAG_SIZE_BYTES: 16, // GCM 认证标签
-  MAX_MESSAGE_SIZE: 10 * 1024 * 1024, // 10MB
-  EXPECTED_PARTS_COUNT: 4, // salt.iv.ciphertext.tag
+  DERIVED_KEY_SIZE_BITS: 512, // 256 for AES + 256 for HMAC
+  AES_KEY_SIZE_BITS: 256,
+  HMAC_KEY_SIZE_BITS: 256,
+  MAX_MESSAGE_SIZE: 5 * 1024 * 1024, // 5MB (加密后约 7-8MB)
+  EXPECTED_PARTS_COUNT: 4, // salt.iv.ciphertext.hmac
 };
 
 // ==================== 辅助函数 ====================
@@ -57,12 +57,12 @@ function deriveKeyWithPBKDF2(password, saltWordArray) {
   
   try {
     const derivedKey = CryptoJS.PBKDF2(password, saltWordArray, {
-      keySize: CRYPTO_CONFIG.KEY_SIZE_BYTES / 4, // 32 bytes = 8 words
+      keySize: CRYPTO_CONFIG.DERIVED_KEY_SIZE_BITS / 32, // 512 bits = 16 words
       iterations: CRYPTO_CONFIG.PBKDF2_ITERATIONS,
       hasher: CryptoJS.algo.SHA512 // 使用 SHA-512 提升安全性
     });
     
-    if (!derivedKey || !derivedKey.words || derivedKey.sigBytes !== CRYPTO_CONFIG.KEY_SIZE_BYTES) {
+    if (!derivedKey || !derivedKey.words) {
       throw new Error('Worker: 密钥派生结果无效');
     }
     
@@ -89,14 +89,14 @@ function validateMessageSize(message) {
   return true;
 }
 
-// ==================== 加密核心逻辑 (AES-256-GCM) ====================
+// ==================== 加密核心逻辑 (AES-256-CBC + HMAC-SHA256) ====================
 
 /**
  * 加密文本消息
- * 使用 AES-256-GCM 模式，提供认证加密
+ * 使用 AES-256-CBC + HMAC-SHA256 模式，提供认证加密
  */
 function performEncryption(textMessage, password, expiryTimestamp) {
-  console.log("Worker: 开始加密操作 (AES-256-GCM)");
+  console.log("Worker: 开始加密操作 (AES-256-CBC + HMAC-SHA256)");
   
   try {
     // 验证输入
@@ -114,8 +114,16 @@ function performEncryption(textMessage, password, expiryTimestamp) {
     const salt = CryptoJS.lib.WordArray.random(CRYPTO_CONFIG.SALT_SIZE_BYTES);
     const iv = CryptoJS.lib.WordArray.random(CRYPTO_CONFIG.IV_SIZE_BYTES);
     
-    // 派生加密密钥
-    const key = deriveKeyWithPBKDF2(password, salt);
+    // 派生密钥 (512 bits = 256 for AES + 256 for HMAC)
+    const derivedKey = deriveKeyWithPBKDF2(password, salt);
+    
+    // 分离 AES 密钥和 HMAC 密钥
+    const aesKey = CryptoJS.lib.WordArray.create(
+      derivedKey.words.slice(0, CRYPTO_CONFIG.AES_KEY_SIZE_BITS / 32)
+    );
+    const hmacKey = CryptoJS.lib.WordArray.create(
+      derivedKey.words.slice(CRYPTO_CONFIG.AES_KEY_SIZE_BITS / 32)
+    );
     
     // 构建待加密的载荷
     const payloadToEncrypt = JSON.stringify({ 
@@ -127,26 +135,25 @@ function performEncryption(textMessage, password, expiryTimestamp) {
     
     console.log("Worker: 载荷大小:", (new Blob([payloadToEncrypt]).size / 1024).toFixed(2), "KB");
     
-    // 使用 AES-256-GCM 加密
-    const encrypted = CryptoJS.AES.encrypt(payloadToEncrypt, key, {
+    // 使用 AES-256-CBC 加密
+    const encrypted = CryptoJS.AES.encrypt(payloadToEncrypt, aesKey, {
       iv: iv,
-      mode: CryptoJS.mode.GCM,
-      padding: CryptoJS.pad.NoPadding // GCM 不需要 padding
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
     });
     
     const ciphertext = encrypted.ciphertext;
     
-    // 提取 GCM 认证标签（最后 16 字节）
-    const tag = CryptoJS.lib.WordArray.create(
-      encrypted.tag?.words || ciphertext.words.slice(-4)
-    );
+    // 计算 HMAC-SHA256 (对 IV + Ciphertext)
+    const dataToMac = iv.clone().concat(ciphertext);
+    const hmac = CryptoJS.HmacSHA256(dataToMac, hmacKey);
     
-    // 组合格式: salt.iv.ciphertext.tag (全部 Base64 编码)
+    // 组合格式: salt.iv.ciphertext.hmac (全部 Base64 编码)
     const combined = [
       wordArrayToBase64(salt),
       wordArrayToBase64(iv),
       wordArrayToBase64(ciphertext),
-      wordArrayToBase64(tag)
+      wordArrayToBase64(hmac)
     ].join('.');
     
     console.log("Worker: 加密完成，输出大小:", (combined.length / 1024).toFixed(2), "KB");
@@ -159,14 +166,14 @@ function performEncryption(textMessage, password, expiryTimestamp) {
   }
 }
 
-// ==================== 解密核心逻辑 (AES-256-GCM) ====================
+// ==================== 解密核心逻辑 (AES-256-CBC + HMAC-SHA256) ====================
 
 /**
  * 解密加密字符串
- * 使用 AES-256-GCM 模式验证并解密
+ * 使用 AES-256-CBC + HMAC-SHA256 模式验证并解密
  */
 function performDecryption(combinedStr, password) {
-  console.log("Worker: 开始解密操作 (AES-256-GCM)");
+  console.log("Worker: 开始解密操作 (AES-256-CBC + HMAC-SHA256)");
   
   try {
     // 验证输入
@@ -189,7 +196,7 @@ function performDecryption(combinedStr, password) {
     const salt = base64ToWordArray(parts[0]);
     const iv = base64ToWordArray(parts[1]);
     const ciphertext = base64ToWordArray(parts[2]);
-    const storedTag = base64ToWordArray(parts[3]);
+    const storedHmac = base64ToWordArray(parts[3]);
     
     // 验证数据完整性
     if (salt.sigBytes !== CRYPTO_CONFIG.SALT_SIZE_BYTES) {
@@ -198,23 +205,39 @@ function performDecryption(combinedStr, password) {
     if (iv.sigBytes !== CRYPTO_CONFIG.IV_SIZE_BYTES) {
       throw new Error("Worker: IV 大小不正确");
     }
-    if (storedTag.sigBytes !== CRYPTO_CONFIG.TAG_SIZE_BYTES) {
-      throw new Error("Worker: 认证标签大小不正确");
-    }
     
     console.log("Worker: 数据完整性检查通过");
     
-    // 派生解密密钥
-    const key = deriveKeyWithPBKDF2(password, salt);
+    // 派生密钥
+    const derivedKey = deriveKeyWithPBKDF2(password, salt);
     
-    // 使用 AES-256-GCM 解密
+    // 分离 AES 密钥和 HMAC 密钥
+    const aesKey = CryptoJS.lib.WordArray.create(
+      derivedKey.words.slice(0, CRYPTO_CONFIG.AES_KEY_SIZE_BITS / 32)
+    );
+    const hmacKey = CryptoJS.lib.WordArray.create(
+      derivedKey.words.slice(CRYPTO_CONFIG.AES_KEY_SIZE_BITS / 32)
+    );
+    
+    // 验证 HMAC
+    const dataToMac = iv.clone().concat(ciphertext);
+    const calculatedHmac = CryptoJS.HmacSHA256(dataToMac, hmacKey);
+    
+    if (wordArrayToBase64(calculatedHmac) !== wordArrayToBase64(storedHmac)) {
+      console.warn("Worker: HMAC 校验失败");
+      throw new Error("Worker: HMAC校验失败。数据可能被篡改或密码错误");
+    }
+    
+    console.log("Worker: HMAC 校验成功");
+    
+    // 使用 AES-256-CBC 解密
     const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: ciphertext, tag: storedTag },
-      key,
+      { ciphertext: ciphertext },
+      aesKey,
       {
         iv: iv,
-        mode: CryptoJS.mode.GCM,
-        padding: CryptoJS.pad.NoPadding
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
       }
     );
     
@@ -222,7 +245,7 @@ function performDecryption(combinedStr, password) {
     const decryptedPayloadJson = decrypted.toString(CryptoJS.enc.Utf8);
     
     if (!decryptedPayloadJson) {
-      console.warn("Worker: 解密后载荷为空，可能是密码错误或数据损坏");
+      console.warn("Worker: 解密后载荷为空，可能是密码错误");
       throw new Error("Worker: 解密失败，请检查密码是否正确");
     }
     
