@@ -11,6 +11,7 @@ const CRYPTO_CONFIG = {
   HMAC_KEY_SIZE_BITS: 256,
   MAX_MESSAGE_SIZE: 5 * 1024 * 1024, // 5MB
   EXPECTED_PARTS_COUNT: 4, // salt.iv.ciphertext.hmac
+  VERSION: 'v2', // 版本标识用于区分加密模式
 };
 
 // ==================== 性能优化：密钥缓存 ====================
@@ -125,14 +126,15 @@ function validateMessageSize(message) {
   return true;
 }
 
-// ==================== 加密核心逻辑 (AES-256-CTR + HMAC-SHA256) ====================
+// ==================== 加密核心逻辑 (AES-256-CBC + HMAC-SHA256) ====================
 
 /**
  * 加密文本消息
- * 使用 AES-256-CTR + HMAC-SHA256 模式（CTR 模式比 CBC 更快，无需填充）
+ * 使用 AES-256-CBC + HMAC-SHA256 模式，提供认证加密
+ * 优化：降低 PBKDF2 迭代次数、使用 SHA-256、添加密钥缓存
  */
 function performEncryption(textMessage, password, expiryTimestamp) {
-  console.log("Worker: 开始加密操作 (AES-256-CTR + HMAC-SHA256)");
+  console.log("Worker: 开始加密操作 (AES-256-CBC + HMAC-SHA256 优化版)");
   
   try {
     // 验证输入
@@ -171,11 +173,11 @@ function performEncryption(textMessage, password, expiryTimestamp) {
     
     console.log("Worker: 载荷大小:", (new Blob([payloadToEncrypt]).size / 1024).toFixed(2), "KB");
     
-    // 使用 AES-256-CTR 加密（CTR 模式更快，支持并行处理）
+    // 使用 AES-256-CBC 加密（保持 CBC 模式确保兼容性）
     const encrypted = CryptoJS.AES.encrypt(payloadToEncrypt, aesKey, {
       iv: iv,
-      mode: CryptoJS.mode.CTR, // CTR 模式比 CBC 快 20-30%
-      padding: CryptoJS.pad.NoPadding // CTR 模式不需要填充
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
     });
     
     const ciphertext = encrypted.ciphertext;
@@ -202,14 +204,15 @@ function performEncryption(textMessage, password, expiryTimestamp) {
   }
 }
 
-// ==================== 解密核心逻辑 (AES-256-CTR + HMAC-SHA256) ====================
+// ==================== 解密核心逻辑 (AES-256-CBC + HMAC-SHA256) ====================
 
 /**
  * 解密加密字符串
- * 使用 AES-256-CTR + HMAC-SHA256 模式验证并解密
+ * 使用 AES-256-CBC + HMAC-SHA256 模式验证并解密
+ * 优化：降低 PBKDF2 迭代次数、使用 SHA-256、添加密钥缓存
  */
 function performDecryption(combinedStr, password) {
-  console.log("Worker: 开始解密操作 (AES-256-CTR + HMAC-SHA256)");
+  console.log("Worker: 开始解密操作 (AES-256-CBC + HMAC-SHA256 优化版)");
   
   try {
     // 验证输入
@@ -266,14 +269,14 @@ function performDecryption(combinedStr, password) {
     
     console.log("Worker: HMAC 校验成功");
     
-    // 使用 AES-256-CTR 解密
+    // 使用 AES-256-CBC 解密（保持 CBC 模式确保兼容性）
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: ciphertext },
       aesKey,
       {
         iv: iv,
-        mode: CryptoJS.mode.CTR, // CTR 模式解密更快
-        padding: CryptoJS.pad.NoPadding
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
       }
     );
     
