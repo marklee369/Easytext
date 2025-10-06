@@ -104,7 +104,7 @@
 import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { cryptoService } from '../services/cryptoService';
 import { apiService } from '../services/apiService';
-import { markdownService } from '../services/sanitizedMarkdownService';
+import { markdownService } from '../services/markdownService';
 const props = defineProps({
   secretId: { type: String, required: true }
 });
