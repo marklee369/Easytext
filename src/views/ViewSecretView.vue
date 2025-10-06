@@ -3,45 +3,37 @@
     <div class="container">
       <div class="columns is-centered">
         <div class="column is-full-mobile is-two-thirds-tablet is-half-desktop is-one-third-widescreen">
-          <div class="box secret-display-box animated-entry" :class="{'is-processing': isDecrypting}">
-            <div v-if="isDecrypting" class="form-loading-overlay">
-              <div class="loader-icon">
-                 <font-awesome-icon :icon="['fas', 'circle-notch']" spin size="3x" />
-              </div>
-              <p class="loading-text-overlay">正在解密数据...</p>
+          <div class="box secret-display-box animated-entry">
+
+            <div v-if="viewState === 'loading'" class="has-text-centered py-6 initial-loader">
+              <span class="icon is-large">
+                <font-awesome-icon :icon="['fas', 'circle-notch']" size="3x" spin />
+              </span>
+              <p class="mt-3 loading-text">正在检索加密数据...</p>
             </div>
 
-            <div class="view-content-wrapper">
-              <div v-if="isLoadingInitial" class="has-text-centered py-6 initial-loader">
-                <span class="icon is-large">
-                  <font-awesome-icon :icon="['fas', 'circle-notch']" size="3x" spin />
-                </span>
-                <p class="mt-3 loading-text">正在检索加密数据...</p>
-              </div>
+            <div v-else-if="viewState === 'error'" class="notification is-danger is-light custom-notification">
+              <p class="icon-text">
+                <span class="icon"><font-awesome-icon :icon="['fas', 'exclamation-triangle']" /></span>
+                <span>{{ generalError }}</span>
+              </p>
+              <router-link to="/" class="button is-primary is-light mt-4 is-fullwidth">返回创建</router-link>
+            </div>
 
-              <div v-else-if="generalError && !isDecrypting" class="notification is-danger is-light mt-4 custom-notification">
-                <button class="delete" @click="clearError"></button>
-                <p class="icon-text">
-                  <span class="icon"><font-awesome-icon :icon="['fas', 'exclamation-triangle']" /></span>
-                  <span>{{ generalError }}</span>
-                </p>
-                <router-link to="/" class="button is-primary is-light mt-4 is-fullwidth">返回创建</router-link>
+            <div v-else-if="viewState === 'prompting'" class="password-prompt-panel" :class="{'is-processing': isDecrypting}">
+              <div v-if="isDecrypting" class="form-loading-overlay">
+                <div class="loader-icon">
+                  <font-awesome-icon :icon="['fas', 'circle-notch']" spin size="3x" />
+                </div>
+                <p class="loading-text-overlay">正在解密数据...</p>
               </div>
-              
-              <div v-else-if="!encryptedPayloadFromServer && !decryptedData.message && !isDecrypting" class="notification is-warning is-light custom-notification">
-                <p>链接中未找到有效加密数据或数据已失效。</p>
-                <router-link to="/" class="button is-primary is-light mt-4 is-fullwidth">返回创建</router-link>
-              </div>
-
-              <div v-else-if="!decryptedData.message" class="password-prompt-panel">
+              <div class="view-content-wrapper">
                 <div class="has-text-centered mb-5">
                   <span class="icon is-large brand-icon-page">
                     <font-awesome-icon :icon="['fas', 'lock-open']" size="3x" />
                   </span>
                   <h1 class="title is-3 has-text-centered is-spaced mt-3 page-title">安全访问</h1>
-                  <p class="subtitle is-6 has-text-centered form-subtitle mb-4">
-                    请输入密码以解密内容。
-                  </p>
+                  <p class="subtitle is-6 has-text-centered form-subtitle mb-4">请输入密码以解密内容。</p>
                 </div>
 
                 <div v-if="secretMetadata?.readOnce" class="notification is-warning is-light is-size-7 p-3 mb-4 custom-notification-inline">
@@ -82,25 +74,25 @@
                   <button 
                     class="button is-primary is-fullwidth is-large submit-button" 
                     @click="handleDecrypt" 
-                    :disabled="isDecrypting || !encryptedPayloadFromServer"
-                    :class="{'is-loading': isDecrypting && !showOverlayLoader}" 
+                    :disabled="isDecrypting"
                   >
                     <span v-if="!isDecrypting" class="icon is-small mr-1"><font-awesome-icon :icon="['fas', 'shield-halved']" /></span>
                     <span>{{ isDecrypting ? "解密中..." : "解密并查看" }}</span>
                   </button>
                 </div>
               </div>
+            </div>
 
-              <div v-else class="decrypted-content-panel animated-entry">
-                <h2 class="title is-4 has-text-centered page-title">解密内容</h2>
-                <div class="markdown-body p-4 my-5" v-html="renderedMarkdown"></div>
-                <hr class="form-divider my-4">
-                <p class="is-size-7 has-text-grey has-text-centered footer-notice">
-                  此密文已被读取。{{ secretMetadata?.readOnce ? "它已从服务器删除。" : "请妥善保管您的信息。" }}
-                </p>
-                <router-link to="/" class="button is-link is-light mt-4 is-fullwidth">创建新密文</router-link>
-              </div>
-            </div> 
+            <div v-else-if="viewState === 'success'" class="decrypted-content-panel animated-entry">
+              <h2 class="title is-4 has-text-centered page-title">解密内容</h2>
+              <div ref="contentContainer" class="markdown-body p-4 my-5" v-html="renderedMarkdown"></div>
+              <hr class="form-divider my-4">
+              <p class="is-size-7 has-text-grey has-text-centered footer-notice">
+                此密文已被读取。{{ secretMetadata?.readOnce ? "它已从服务器删除。" : "请妥善保管您的信息。" }}
+              </p>
+              <router-link to="/" class="button is-link is-light mt-4 is-fullwidth">创建新密文</router-link>
+            </div>
+
           </div>
         </div>
       </div>
@@ -110,125 +102,121 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, nextTick } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import { cryptoService } from '../services/cryptoService';
 import { apiService } from '../services/apiService';
-import { markdownService } from '../services/markdownService';
+import { sanitizedMarkdownService } from '../services/sanitizedMarkdownService';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/atom-one-dark.css';
 
 const props = defineProps({
-  secretId: { type: String, required: true, }
+  secretId: { type: String, required: true }
 });
-const router = useRouter();
+
+const viewState = ref('loading');
+const isDecrypting = ref(false);
 
 const encryptedPayloadFromServer = ref('');
 const secretMetadata = ref(null);
 const viewPassword = ref('');
 const showPassword = ref(false);
-
-const decryptedData = ref({}); 
-const renderedMarkdown = computed(() => {
-  if (decryptedData.value && decryptedData.value.type === 'text' && typeof decryptedData.value.message === 'string') {
-    return markdownService.render(decryptedData.value.message);
-  }
-  return '';
-});
-
-const isLoadingInitial = ref(true);
-const isDecrypting = ref(false); 
-const showOverlayLoader = ref(true); 
+const decryptedMessage = ref('');
 const generalError = ref('');
 const decryptionError = ref('');
+const contentContainer = ref(null);
+
 const defaultPasswordValue = "MrLee";
 
-function clearError() {
-    generalError.value = '';
-    decryptionError.value = '';
-}
+const renderedMarkdown = computed(() => {
+  return sanitizedMarkdownService.render(decryptedMessage.value);
+});
 
-function formatExpiryOption(option) {
-    const map = { '5min': '5分钟', '30min': '30分钟', '1hour': '1小时', '6hour': '6小时', '1day': '1天' };
-    return map[option] || option;
-}
+const formatExpiryOption = (option) => {
+  const map = { '5min': '5分钟', '30min': '30分钟', '1hour': '1小时', '6hour': '6小时', '1day': '1天' };
+  return map[option] || option;
+};
 
-async function fetchSecretData(id) {
-  isLoadingInitial.value = true;
+const resetComponentState = () => {
+  viewState.value = 'loading';
+  isDecrypting.value = false;
+  encryptedPayloadFromServer.value = '';
+  secretMetadata.value = null;
+  viewPassword.value = '';
+  decryptedMessage.value = '';
   generalError.value = '';
-  decryptedData.value = {}; 
+  decryptionError.value = '';
+};
+
+const fetchSecretData = async (id) => {
+  if (!id) {
+    generalError.value = "无效的密文链接或ID缺失。";
+    viewState.value = 'error';
+    return;
+  }
+  
+  resetComponentState();
+
   try {
     const result = await apiService.getSecret(id);
     encryptedPayloadFromServer.value = result.encryptedPayload;
     secretMetadata.value = result.metadata;
-    console.log("ViewSecret: 从服务器获取的加密载荷。");
+    viewState.value = 'prompting';
   } catch (e) {
-    console.error("ViewSecret: 获取秘密错误:", e);
     generalError.value = e.message || "无法获取密文。可能已销毁、链接无效或网络错误。";
-    encryptedPayloadFromServer.value = ''; 
-    secretMetadata.value = null;
-  } finally {
-    isLoadingInitial.value = false;
+    viewState.value = 'error';
   }
-}
+};
 
-onMounted(() => {
-  if (props.secretId) {
-    fetchSecretData(props.secretId);
-  } else {
-    generalError.value = "无效的密文链接或ID缺失。";
-    isLoadingInitial.value = false;
-  }
-});
-
-watch(() => props.secretId, (newId, oldId) => {
-  if (newId && newId !== oldId) { 
-    viewPassword.value = ''; 
-    decryptedData.value = {}; 
-    generalError.value = ''; 
-    decryptionError.value = ''; 
-    fetchSecretData(newId); 
-  }
-});
-
-async function handleDecrypt() {
+const handleDecrypt = async () => {
   decryptionError.value = '';
-  const actualPasswordToTry = viewPassword.value.trim() === '' ? defaultPasswordValue : viewPassword.value;
-
-  if (!encryptedPayloadFromServer.value) {
-    generalError.value = "未加载加密数据，无法解密。请刷新或检查链接。";
-    return;
-  }
-  console.log("ViewSecret: 尝试使用密码解密:", actualPasswordToTry === defaultPasswordValue ? "(默认)" : "(自定义)");
-  isDecrypting.value = true; 
+  isDecrypting.value = true;
   
-  await nextTick(); 
+  const passwordToTry = viewPassword.value.trim() === '' ? defaultPasswordValue : viewPassword.value;
 
   try {
-    const payloadObject = await cryptoService.decrypt(encryptedPayloadFromServer.value, actualPasswordToTry);
-    console.log("ViewSecret: 从服务收到的解密后载荷对象:", payloadObject);
+    const payload = await cryptoService.decrypt(encryptedPayloadFromServer.value, passwordToTry);
     
-    if (payloadObject && typeof payloadObject === 'object' && payloadObject.type === 'text' && typeof payloadObject.message === 'string') {
-        decryptedData.value = payloadObject;
-        console.log("ViewSecret: 解密成功, decryptedData 已设置:", decryptedData.value);
+    if (payload?.type === 'text' && typeof payload.message === 'string') {
+      decryptedMessage.value = payload.message;
+      viewState.value = 'success';
     } else {
-        console.error("ViewSecret: 解密后收到意外的载荷结构:", payloadObject);
-        throw new Error(payloadObject && payloadObject.message && typeof payloadObject.message !== 'string' ? "解密数据类型不匹配。" : "解密成功，但返回的数据结构不正确或不是文本类型。");
+      throw new Error("解密成功，但返回的数据结构不正确。");
     }
   } catch (e) {
-    console.error("ViewSecret: handleDecrypt 中的解密错误:", e);
     decryptionError.value = e.message || "解密失败，请仔细检查您的密码。";
-    decryptedData.value = {}; 
   } finally {
-    isDecrypting.value = false; 
+    isDecrypting.value = false;
   }
-}
+};
+
+onMounted(() => {
+  fetchSecretData(props.secretId);
+});
+
+watch(() => props.secretId, (newId) => {
+  if (newId) {
+    fetchSecretData(newId);
+  }
+});
+
+watch(viewState, (newState) => {
+  if (newState === 'success') {
+    nextTick(() => {
+      if (contentContainer.value) {
+        const blocks = contentContainer.value.querySelectorAll('pre code');
+        blocks.forEach((block) => {
+          hljs.highlightElement(block);
+        });
+      }
+    });
+  }
+});
 </script>
 
 <style scoped lang="scss">
 .view-secret-section {
   padding-top: 6rem;
   padding-bottom: 3rem;
-
-  // 移动端优化：减少左右内边距
-  @media screen and (max-width: 768px) { // Bulma $tablet - 1px
+  @media screen and (max-width: 768px) {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
@@ -237,44 +225,34 @@ async function handleDecrypt() {
   background-color: var(--bulma-card-background-color);
   border: 1px solid var(--bulma-border);
   border-radius: var(--bulma-radius-large);
-  padding: 2rem 2.5rem; // 默认和桌面端内边距
+  padding: 2rem 2.5rem;
   position: relative;
   transition: filter 0.3s ease-out;
-
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-width: 680px; // 默认最大宽度
-
-  // 移动端优化：减少盒子内部的左右内边距
+  max-width: 680px;
   @media screen and (max-width: 768px) {
     padding-left: 1rem;
     padding-right: 1rem;
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
   }
-
   @media screen and (min-width: 1024px) {
     max-width: 760px;
-    padding: 2rem 2.5rem; // 确保桌面端内边距恢复或设置
+    padding: 2rem 2.5rem;
   }
-
   @media screen and (min-width: 1408px) {
     max-width: 800px;
   }
 }
-
-/* ... (其余所有 .secret-display-box.is-processing, .form-loading-overlay, 等样式保持不变) ... */
-/* 确保 @keyframes pulse-glow 和 .brand-icon-page .svg-inline--fa 的动画样式也存在于此文件中，如果它们是独立的 */
-
-.secret-display-box.is-processing {
-  .password-prompt-panel {
+.password-prompt-panel.is-processing {
+  .view-content-wrapper {
     filter: blur(3px) opacity(0.6);
     pointer-events: none;
     transition: filter 0.2s ease, opacity 0.2s ease;
   }
 }
-
 .form-loading-overlay {
   position: absolute;
   top: 0; left: 0;
@@ -306,12 +284,6 @@ async function handleDecrypt() {
   font-size: 1rem;
   letter-spacing: 0.5px;
 }
-
-.view-content-wrapper {
-  transition: filter 0.2s ease, opacity 0.2s ease;
-}
-
-
 .initial-loader .svg-inline--fa {
   color: var(--primary-color);
 }
@@ -319,7 +291,6 @@ async function handleDecrypt() {
   font-family: var(--tech-font-family-mono, monospace);
   color: var(--bulma-text-light);
 }
-
 .brand-icon-page {
   display: inline-block;
   position: relative;
@@ -343,7 +314,6 @@ async function handleDecrypt() {
     animation: none;
     filter: drop-shadow(0 0 5px var(--tech-glow-color));
 }
-
 @keyframes pulse-glow {
   0%, 100% {
     transform: scale(1);
@@ -358,8 +328,6 @@ async function handleDecrypt() {
     opacity: 1;
   }
 }
-
-
 .page-title {
   color: var(--bulma-text-strong);
   font-family: var(--tech-font-family, 'IBM Plex Mono', monospace);
@@ -426,6 +394,8 @@ async function handleDecrypt() {
 .markdown-body {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 .footer-notice {
   font-family: var(--tech-font-family-mono, monospace);
@@ -444,3 +414,12 @@ async function handleDecrypt() {
 }
 </style>
 
+<style>
+/* highlight.js 样式会影响全局，
+  但我们只在 .markdown-body 容器内渲染代码块，
+  所以可以通过添加父选择器来约束样式的作用范围，避免污染全局。
+*/
+.markdown-body .hljs {
+  border-radius: 6px;
+}
+</style>
