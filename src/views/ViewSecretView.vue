@@ -85,6 +85,20 @@
 
             <div v-else-if="viewState === 'success'" class="decrypted-content-panel animated-entry">
               <h2 class="title is-4 has-text-centered page-title">解密内容</h2>
+              
+              <div class="has-text-centered mb-2">
+                <button 
+                  class="button is-small is-primary is-light is-rounded" 
+                  @click="handleCopy"
+                  :class="{'is-success': isCopied}"
+                  title="复制原始内容到剪贴板"
+                >
+                  <span class="icon is-small">
+                    <font-awesome-icon :icon="isCopied ? ['fas', 'check'] : ['fas', 'copy']" />
+                  </span>
+                  <span>{{ isCopied ? '复制成功' : '一键复制明文' }}</span>
+                </button>
+              </div>
               <div ref="contentContainer" class="markdown-body p-4 my-5" v-html="renderedMarkdown"></div>
               <hr class="form-divider my-4">
               <p class="is-size-7 has-text-grey has-text-centered footer-notice">
@@ -111,6 +125,7 @@ const props = defineProps({
 
 const viewState = ref('loading');
 const isDecrypting = ref(false);
+const isCopied = ref(false); // ADDED: Copy feedback state
 
 const encryptedPayloadFromServer = ref('');
 const secretMetadata = ref(null);
@@ -132,6 +147,20 @@ const formatExpiryOption = (option) => {
   return map[option] || option;
 };
 
+// ADDED: Copy function
+const handleCopy = async () => {
+  if (!decryptedMessage.value) return;
+  try {
+    await navigator.clipboard.writeText(decryptedMessage.value);
+    isCopied.value = true;
+    setTimeout(() => {
+      isCopied.value = false;
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy text:', err);
+  }
+};
+
 const resetComponentState = () => {
   viewState.value = 'loading';
   isDecrypting.value = false;
@@ -141,6 +170,7 @@ const resetComponentState = () => {
   decryptedMessage.value = '';
   generalError.value = '';
   decryptionError.value = '';
+  isCopied.value = false; // Reset copy state
 };
 
 const fetchSecretData = async (id) => {
@@ -412,10 +442,6 @@ watch(viewState, (newState) => {
 </style>
 
 <style>
-/* highlight.js 样式会影响全局，
-  但我们只在 .markdown-body 容器内渲染代码块，
-  所以可以通过添加父选择器来约束样式的作用范围，避免污染全局。
-*/
 .markdown-body .hljs {
   border-radius: 6px;
 }
